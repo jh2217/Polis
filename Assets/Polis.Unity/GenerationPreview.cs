@@ -15,9 +15,27 @@ namespace Polis.Unity
         [SerializeField] private Color lowColor = new Color(0.05f, 0.1f, 0.4f);
         [SerializeField] private Color midColor = new Color(0.2f, 0.65f, 0.25f);
         [SerializeField] private Color highColor = Color.white;
+        [Tooltip("Outline every tile on the terrain. Toggle at runtime from the inspector.")]
+        [SerializeField] private bool showGrid = true;
+        [SerializeField] private Color gridColor = new Color(0.1f, 0.1f, 0.1f);
 
         private MeshFilter _meshFilter;
         private Material _material;
+        private MeshFilter _gridFilter;
+        private Material _gridMaterial;
+
+        // Fires when the inspector changes, including in play mode, so the checkbox toggles the grid live.
+        private void OnValidate()
+        {
+            ApplyGridSettings();
+        }
+
+        private void ApplyGridSettings()
+        {
+            if (_gridFilter == null) return;
+            _gridFilter.gameObject.SetActive(showGrid);
+            _gridMaterial.color = gridColor;
+        }
 
         private void Start() => Regenerate();
 
@@ -33,7 +51,10 @@ namespace Polis.Unity
             // Free the previous mesh/texture so repeated Regenerate calls don't leak.
             if (_meshFilter.sharedMesh != null) DestroyObject(_meshFilter.sharedMesh);
             if (_material.mainTexture != null) DestroyObject(_material.mainTexture);
+            if (_gridFilter.sharedMesh != null) DestroyObject(_gridFilter.sharedMesh);
 
+            _gridFilter.sharedMesh = TerrainGridBuilder.Build(map);
+            ApplyGridSettings();
             _meshFilter.sharedMesh = TerrainMeshBuilder.Build(map);
             _material.mainTexture = Heatmap.ToTexture(map, Mathf.Max(1, settings.MaxHeight), lowColor, midColor, highColor);
             FrameCamera();
@@ -50,6 +71,12 @@ namespace Polis.Unity
             var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Texture");
             _material = new Material(shader);
             go.AddComponent<MeshRenderer>().sharedMaterial = _material;
+
+            var grid = new GameObject("Grid");
+            grid.transform.SetParent(transform, false);
+            _gridFilter = grid.AddComponent<MeshFilter>();
+            _gridMaterial = new Material(shader);
+            grid.AddComponent<MeshRenderer>().sharedMaterial = _gridMaterial;
         }
 
         private static void DestroyObject(Object o)
