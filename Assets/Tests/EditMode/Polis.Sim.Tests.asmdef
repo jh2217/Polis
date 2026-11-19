@@ -3,6 +3,7 @@
     "rootNamespace": "Polis.Sim.Tests",
     "references": [
         "Polis.Sim",
+        "Polis.Unity",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

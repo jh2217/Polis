@@ -5,10 +5,14 @@ namespace Polis.Sim
     /// <summary>Builds a base heightmap in [0, 1] from fBm noise plus a redistribution curve.</summary>
     public static class ElevationGenerator
     {
+        // System.Serializable (not a UnityEngine type) lets Unity show this struct in the inspector.
+        [Serializable]
         public struct Settings
         {
-            /// <summary>Allows deterministic generation of the same map.</summary>
-            public ulong? Seed;
+            /// <summary>When true, Seed pins the map; when false, the RNG passed to Generate decides.</summary>
+            public bool UseSeed;
+            /// <summary>Seed for deterministic generation of the same map; only used if UseSeed is true.</summary>
+            public ulong Seed;
             /// <summary>Noise features per map width (higher = busier terrain).</summary>
             public float Scale;
             /// <summary>Number of noise layers summed; more adds finer detail.</summary>
@@ -22,7 +26,8 @@ namespace Polis.Sim
 
             public static Settings Default => new Settings
             {
-                Seed = null,
+                UseSeed = false,
+                Seed = 0,
                 Scale = 3f,
                 Octaves = 5,
                 Lacunarity = 2f,
@@ -31,14 +36,14 @@ namespace Polis.Sim
             };
         }
 
-        public static HeightMap Generate(int width, int height, SimRng rng, Settings settings)
+        public static HeightMap Generate(MapSize size, SimRng rng, Settings settings)
         {
-            var noise = new Noise(settings.Seed ?? rng.NextULong());
-            var map = new HeightMap(width, height);
-            float inv = settings.Scale / Math.Max(width, height);
+            var noise = new Noise(settings.UseSeed ? settings.Seed : rng.NextULong());
+            var map = new HeightMap(size);
+            float inv = settings.Scale / Math.Max(size.X, size.Y);
 
-            for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
+            for (int y = 0; y < size.Y; y++)
+            for (int x = 0; x < size.X; x++)
             {
                 float n = noise.Fbm(x * inv, y * inv, settings.Octaves, settings.Lacunarity, settings.Persistence);
                 map[x, y] = (float)Math.Pow(n, settings.Redistribution);
