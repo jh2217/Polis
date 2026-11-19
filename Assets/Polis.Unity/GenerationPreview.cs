@@ -17,7 +17,6 @@ namespace Polis.Unity
         [SerializeField] private Color highColor = Color.white;
         [Tooltip("Outline every tile on the terrain. Toggle at runtime from the inspector.")]
         [SerializeField] private bool showGrid = true;
-        [SerializeField] private Color gridColor = new Color(0.1f, 0.1f, 0.1f);
 
         private MeshFilter _meshFilter;
         private Material _material;
@@ -34,7 +33,6 @@ namespace Polis.Unity
         {
             if (_gridFilter == null) return;
             _gridFilter.gameObject.SetActive(showGrid);
-            _gridMaterial.color = gridColor;
         }
 
         private void Start() => Regenerate();
@@ -75,7 +73,9 @@ namespace Polis.Unity
             var grid = new GameObject("Grid");
             grid.transform.SetParent(transform, false);
             _gridFilter = grid.AddComponent<MeshFilter>();
-            _gridMaterial = new Material(shader);
+            // The shared material asset is used directly (not copied) so editing it changes the grid live.
+            // The grid shader fades lines by on-screen tile size; see Resources/GridLines.shader.
+            _gridMaterial = Resources.Load<Material>("GridLines") ?? new Material(Shader.Find("Polis/GridLines") ?? shader);
             grid.AddComponent<MeshRenderer>().sharedMaterial = _gridMaterial;
         }
 
