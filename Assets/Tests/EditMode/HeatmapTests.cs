@@ -26,17 +26,19 @@ namespace Polis.Sim.Tests
         }
 
         [Test]
-        public void ToTexture_MatchesMapSize_AndPixelColors()
+        public void ToTexture_HasOnePixelPerVertex_ColoredByHeightOverMax()
         {
-            var map = new HeightMap(4, 3);
-            map[2, 1] = 1f;
+            var map = new HeightMap(4, 3); // 5 x 4 vertices
+            map[2, 1] = 10;
+            map[3, 2] = 5;
 
-            var tex = Heatmap.ToTexture(map, Low, Mid, High);
+            var tex = Heatmap.ToTexture(map, 10, Low, Mid, High);
             try
             {
-                Assert.AreEqual(4, tex.width);
-                Assert.AreEqual(3, tex.height);
+                Assert.AreEqual(5, tex.width);
+                Assert.AreEqual(4, tex.height);
                 Assert.AreEqual((Color32)High, (Color32)tex.GetPixel(2, 1));
+                Assert.AreEqual((Color32)Mid, (Color32)tex.GetPixel(3, 2));
                 Assert.AreEqual((Color32)Low, (Color32)tex.GetPixel(0, 0));
             }
             finally

@@ -16,18 +16,36 @@ namespace Polis.Sim.Tests
         }
 
         [Test]
-        public void Generate_ValuesInUnitRange_AndHasVariation()
+        public void Generate_HeightsAreWholeNumbersWithinZeroAndMaxHeight_AndVary()
         {
-            var m = ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(5), ElevationGenerator.Settings.Default);
-            float min = float.MaxValue, max = float.MinValue;
-            foreach (float v in m.Data)
+            var s = ElevationGenerator.Settings.Default;
+            var m = ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(5), s);
+            int min = int.MaxValue, max = int.MinValue;
+            foreach (int v in m.Data)
             {
-                Assert.GreaterOrEqual(v, 0f);
-                Assert.LessOrEqual(v, 1f);
+                Assert.GreaterOrEqual(v, 0);
+                Assert.LessOrEqual(v, s.MaxHeight);
                 if (v < min) min = v;
                 if (v > max) max = v;
             }
-            Assert.Greater(max - min, 0.1f);
+            Assert.Greater(max - min, 2);
+        }
+
+        [Test]
+        public void Generate_CreatesAHeightForEveryVertex()
+        {
+            var m = ElevationGenerator.Generate(new MapSize(10, 6), new SimRng(1), ElevationGenerator.Settings.Default);
+            Assert.AreEqual(11 * 7, m.Data.Length);
+        }
+
+        [Test]
+        public void Generate_MaxHeightBelowOne_ClampsToOne()
+        {
+            var s = ElevationGenerator.Settings.Default;
+            s.MaxHeight = 0;
+            var m = ElevationGenerator.Generate(new MapSize(16, 16), new SimRng(2), s);
+            foreach (int v in m.Data)
+                Assert.IsTrue(v == 0 || v == 1, $"unexpected value {v}");
         }
 
         [Test]
