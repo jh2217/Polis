@@ -1,3 +1,4 @@
+using Polis.Sim;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -22,8 +23,8 @@ namespace Polis.Unity
         [Tooltip("Rotation speed in degrees per second.")]
         [SerializeField] private float rotateSpeed = 360f;
 
-        [Tooltip("Frames the camera on this preview's terrain each time it generates.")]
-        [SerializeField] private GenerationPreview preview;
+        [Tooltip("Frames the camera on the map each time this host gets a new one.")]
+        [SerializeField] private MapHost mapHost;
 
         private Camera _camera;
         private bool _framed;
@@ -73,13 +74,17 @@ namespace Polis.Unity
 
         private void OnEnable()
         {
-            if (preview != null) preview.Generated += Frame;
+            if (mapHost == null) return;
+            mapHost.Changed += OnMapChanged;
+            if (mapHost.Current != null) OnMapChanged(mapHost.Current);
         }
 
         private void OnDisable()
         {
-            if (preview != null) preview.Generated -= Frame;
+            if (mapHost != null) mapHost.Changed -= OnMapChanged;
         }
+
+        private void OnMapChanged(MapState state) => Frame(mapHost.BoundsOf(state));
 
         private void Update()
         {

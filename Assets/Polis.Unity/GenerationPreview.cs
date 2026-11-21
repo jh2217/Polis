@@ -5,8 +5,10 @@ namespace Polis.Unity
 {
     /// <summary>
     /// Debug shell: generates an elevation map from the inspector settings and shows it as a heatmap-colored mesh.
-    /// Add to any GameObject in a scene; right-click the component and choose "Regenerate" to reroll.
+    /// Add to any GameObject in a scene (a MapHost is added alongside it and receives each generated map);
+    /// right-click the component and choose "Regenerate" to reroll.
     /// </summary>
+    [RequireComponent(typeof(MapHost))]
     public sealed class GenerationPreview : MonoBehaviour
     {
         // Vector2Int because Unity can't serialize the readonly MapSize; converted on use.
@@ -17,9 +19,6 @@ namespace Polis.Unity
         [SerializeField] private Color highColor = Color.white;
         [Tooltip("Outline every tile on the terrain. Toggle at runtime from the inspector.")]
         [SerializeField] private bool showGrid = true;
-
-        /// <summary>Raised after each Regenerate with the world-space bounds of the generated terrain.</summary>
-        public event System.Action<Bounds> Generated;
 
         private MeshFilter _meshFilter;
         private Material _material;
@@ -59,8 +58,7 @@ namespace Polis.Unity
             _meshFilter.sharedMesh = TerrainMeshBuilder.Build(map);
             _material.mainTexture = Heatmap.ToTexture(map, Mathf.Max(1, settings.MaxHeight), lowColor, midColor, highColor);
 
-            var size = new Vector3(mapSize.x, Mathf.Max(1, settings.MaxHeight) * TileShape.HeightUnitInTileWidths, mapSize.y);
-            Generated?.Invoke(new Bounds(transform.position + size * 0.5f, size));
+            GetComponent<MapHost>().Set(new MapState(map));
         }
 
         private void EnsureTerrainObject()
