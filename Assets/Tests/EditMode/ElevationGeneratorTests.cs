@@ -8,9 +8,9 @@ namespace Polis.Sim.Tests
         public void Generate_SameSeed_Identical_DifferentSeed_Differs()
         {
             var s = ElevationGenerator.Settings.Default;
-            var a = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), s);
-            var b = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), s);
-            var c = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(2), s);
+            var a = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), s).Heights;
+            var b = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), s).Heights;
+            var c = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(2), s).Heights;
             CollectionAssert.AreEqual(a.Data, b.Data);
             CollectionAssert.AreNotEqual(a.Data, c.Data);
         }
@@ -19,7 +19,7 @@ namespace Polis.Sim.Tests
         public void Generate_HeightsAreWholeNumbersWithinZeroAndMaxHeight_AndVary()
         {
             var s = ElevationGenerator.Settings.Default;
-            var m = ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(5), s);
+            var m = ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(5), s).Heights;
             int min = int.MaxValue, max = int.MinValue;
             foreach (int v in m.Data)
             {
@@ -34,7 +34,7 @@ namespace Polis.Sim.Tests
         [Test]
         public void Generate_CreatesAHeightForEveryVertex()
         {
-            var m = ElevationGenerator.Generate(new MapSize(10, 6), new SimRng(1), ElevationGenerator.Settings.Default);
+            var m = ElevationGenerator.Generate(new MapSize(10, 6), new SimRng(1), ElevationGenerator.Settings.Default).Heights;
             Assert.AreEqual(11 * 7, m.Data.Length);
         }
 
@@ -43,7 +43,7 @@ namespace Polis.Sim.Tests
         {
             var s = ElevationGenerator.Settings.Default;
             s.MaxHeight = 0;
-            var m = ElevationGenerator.Generate(new MapSize(16, 16), new SimRng(2), s);
+            var m = ElevationGenerator.Generate(new MapSize(16, 16), new SimRng(2), s).Heights;
             foreach (int v in m.Data)
                 Assert.IsTrue(v == 0 || v == 1, $"unexpected value {v}");
         }
@@ -54,8 +54,8 @@ namespace Polis.Sim.Tests
             var s = ElevationGenerator.Settings.Default;
             s.UseSeed = true;
             s.Seed = 123UL;
-            var a = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), s);
-            var b = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(999), s);
+            var a = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), s).Heights;
+            var b = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(999), s).Heights;
             CollectionAssert.AreEqual(a.Data, b.Data);
         }
 
@@ -68,8 +68,8 @@ namespace Polis.Sim.Tests
             s1.Seed = 1UL;
             s2.UseSeed = true;
             s2.Seed = 2UL;
-            var a = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(5), s1);
-            var b = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(5), s2);
+            var a = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(5), s1).Heights;
+            var b = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(5), s2).Heights;
             CollectionAssert.AreNotEqual(a.Data, b.Data);
         }
 
@@ -88,8 +88,8 @@ namespace Polis.Sim.Tests
         public void Generate_UseSeedOff_FallsBackToRng()
         {
             var s = ElevationGenerator.Settings.Default; // UseSeed == false
-            var a = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(3), s);
-            var b = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(4), s);
+            var a = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(3), s).Heights;
+            var b = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(4), s).Heights;
             CollectionAssert.AreNotEqual(a.Data, b.Data);
         }
 
@@ -103,10 +103,44 @@ namespace Polis.Sim.Tests
             var flat = rough;
             flat.FlatnessStrength = 1f;
 
-            float roughTotal = Roughness(ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(1), rough));
-            float flatTotal = Roughness(ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(1), flat));
+            float roughTotal = Roughness(ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(1), rough).Heights);
+            float flatTotal = Roughness(ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(1), flat).Heights);
 
             Assert.Less(flatTotal, roughTotal);
+        }
+
+        [Test]
+        public void Generate_Flatness_HasOneValueInUnitRangePerVertex_AndVaries()
+        {
+            var s = ElevationGenerator.Settings.Default;
+            var flatness = ElevationGenerator.Generate(new MapSize(40, 24), new SimRng(5), s).Flatness;
+
+            Assert.AreEqual(41 * 25, flatness.Data.Length);
+            float min = float.MaxValue, max = float.MinValue;
+            foreach (float v in flatness.Data)
+            {
+                Assert.GreaterOrEqual(v, 0f);
+                Assert.LessOrEqual(v, 1f);
+                if (v < min) min = v;
+                if (v > max) max = v;
+            }
+            Assert.Greater(max - min, 0.1f);
+        }
+
+        [Test]
+        public void Generate_Flatness_IsDeterministic_AndIgnoresFlatnessStrength()
+        {
+            var a = ElevationGenerator.Settings.Default;
+            a.UseSeed = true;
+            a.Seed = 9;
+            a.FlatnessStrength = 0f;
+            var b = a;
+            b.FlatnessStrength = 1f;
+
+            var flatA = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), a).Flatness;
+            var flatB = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(2), b).Flatness;
+
+            CollectionAssert.AreEqual(flatA.Data, flatB.Data);
         }
 
         [Test]
@@ -120,8 +154,8 @@ namespace Polis.Sim.Tests
             b.FlatnessScale = 9f;
             b.FlatnessFromOctave = 0;
 
-            var mapA = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), a);
-            var mapB = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), b);
+            var mapA = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), a).Heights;
+            var mapB = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), b).Heights;
 
             CollectionAssert.AreEqual(mapA.Data, mapB.Data);
         }
@@ -133,8 +167,8 @@ namespace Polis.Sim.Tests
             var s2 = ElevationGenerator.Settings.Default;
             s1.Seed = 1UL;
             s2.Seed = 2UL;
-            var a = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(5), s1);
-            var b = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(5), s2);
+            var a = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(5), s1).Heights;
+            var b = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(5), s2).Heights;
             CollectionAssert.AreEqual(a.Data, b.Data);
         }
 

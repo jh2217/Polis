@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Polis.Unity
 {
-    /// <summary>Debug visualization: renders vertex heights as a color-ramp texture. Colors are supplied by the caller.</summary>
+    /// <summary>Debug visualization: renders a vertex field as a color-ramp texture. Colors are supplied by the caller.</summary>
     public static class Heatmap
     {
         /// <summary>Maps t (clamped to [0, 1]) onto a low → mid → high ramp.</summary>
@@ -15,18 +15,27 @@ namespace Polis.Unity
                 : Color.Lerp(mid, high, (t - 0.5f) * 2f);
         }
 
-        /// <summary>
-        /// One pixel per vertex (so the texture is VertexSize, not Size), colored by height / maxHeight.
-        /// Bilinear filtering blends between vertices, matching how tile surfaces are defined by their corners.
-        /// </summary>
+        /// <summary>Colors each vertex by height / maxHeight; see the FloatMap overload for the texture layout.</summary>
         public static Texture2D ToTexture(HeightMap map, int maxHeight, Color low, Color mid, Color high)
         {
             float inv = maxHeight > 0 ? 1f / maxHeight : 0f;
-            var colors = new Color[map.Data.Length];
-            for (int i = 0; i < colors.Length; i++)
-                colors[i] = Evaluate(map.Data[i] * inv, low, mid, high);
+            var field = new FloatMap(map.Size);
+            for (int i = 0; i < map.Data.Length; i++)
+                field.Data[i] = map.Data[i] * inv;
+            return ToTexture(field, low, mid, high);
+        }
 
-            var tex = new Texture2D(map.VertexSize.X, map.VertexSize.Y, TextureFormat.RGBA32, false)
+        /// <summary>
+        /// One pixel per vertex (so the texture is VertexSize, not Size), colored by the field value in [0, 1].
+        /// Bilinear filtering blends between vertices, matching how tile surfaces are defined by their corners.
+        /// </summary>
+        public static Texture2D ToTexture(FloatMap field, Color low, Color mid, Color high)
+        {
+            var colors = new Color[field.Data.Length];
+            for (int i = 0; i < colors.Length; i++)
+                colors[i] = Evaluate(field.Data[i], low, mid, high);
+
+            var tex = new Texture2D(field.VertexSize.X, field.VertexSize.Y, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp,

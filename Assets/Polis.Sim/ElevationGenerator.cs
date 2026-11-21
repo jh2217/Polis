@@ -2,7 +2,10 @@ using System;
 
 namespace Polis.Sim
 {
-    /// <summary>Builds a base heightmap of integer vertex heights from fBm noise plus a redistribution curve.</summary>
+    /// <summary>
+    /// Builds a base heightmap of integer vertex heights from fBm noise plus a redistribution curve, with a
+    /// low-frequency flatness field that removes fine detail to make plains.
+    /// </summary>
     public static class ElevationGenerator
     {
         // System.Serializable (not a UnityEngine type) lets Unity show this struct in the inspector.
@@ -51,13 +54,27 @@ namespace Polis.Sim
         // Keeps the flatness field independent of the elevation noise while sharing the same seed.
         private const ulong FlatnessSeedSalt = 0xA24BAED4963EE407UL;
 
-        /// <param name="size">Map size in tiles; heights are generated for every vertex, so (X + 1) by (Y + 1) of them.</param>
-        public static HeightMap Generate(MapSize size, SimRng rng, Settings settings)
+        public readonly struct Result
+        {
+            public readonly HeightMap Heights;
+            /// <summary>The flatness field in [0, 1] at every vertex, before FlatnessStrength is applied.</summary>
+            public readonly FloatMap Flatness;
+
+            public Result(HeightMap heights, FloatMap flatness)
+            {
+                Heights = heights;
+                Flatness = flatness;
+            }
+        }
+
+        /// <param name="size">Map size in tiles; values are generated for every vertex, so (X + 1) by (Y + 1) of them.</param>
+        public static Result Generate(MapSize size, SimRng rng, Settings settings)
         {
             ulong seed = settings.UseSeed ? settings.Seed : rng.NextULong();
             var elevationNoise = new Noise(seed);
             var flatnessNoise = new Noise(seed ^ FlatnessSeedSalt);
             var map = new HeightMap(size);
+            var flatnessMap = new FloatMap(size);
             float extent = Math.Max(size.X, size.Y);
             float elevationFrequency = settings.Scale / extent;
             float flatnessFrequency = settings.FlatnessScale / extent;
@@ -68,13 +85,14 @@ namespace Polis.Sim
             for (int x = 0; x < map.VertexSize.X; x++)
             {
                 float flatness = flatnessNoise.Value(x * flatnessFrequency, y * flatnessFrequency);
+                flatnessMap[x, y] = flatness;
                 float detailScale = 1f - strength * flatness;
                 float n = elevationNoise.Fbm(x * elevationFrequency, y * elevationFrequency, settings.Octaves,
                     settings.Lacunarity, settings.Persistence, settings.FlatnessFromOctave, detailScale);
                 float smooth = (float)Math.Pow(n, settings.Redistribution);
                 map[x, y] = (int)Math.Round(smooth * maxHeight);
             }
-            return map;
+            return new Result(map, flatnessMap);
         }
     }
 }
