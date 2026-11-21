@@ -131,6 +131,7 @@ GameObject:
   - component: {fileID: 330585545}
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
+  - component: {fileID: 330585548}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -256,6 +257,32 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!114 &330585548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b87e32abbe8907b46a5f134c822486f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Polis.Unity::Polis.Unity.CameraRig
+  controls:
+    PanButton: 2
+    RotateLeftKey: 61
+    RotateRightKey: 62
+    RotateLeftButton: 3
+    RotateRightButton: 4
+    ZoomInKey: 63
+    ZoomOutKey: 64
+    KeyZoomNotchesPerSecond: 12
+  pitch: 45
+  zoomStep: 0.15
+  minOrthoSize: 4
+  rotateSpeed: 360
+  mapHost: {fileID: 384019422}
 --- !u!1 &384019418
 GameObject:
   m_ObjectHideFlags: 0
@@ -267,6 +294,8 @@ GameObject:
   - component: {fileID: 384019419}
   - component: {fileID: 384019421}
   - component: {fileID: 384019420}
+  - component: {fileID: 384019422}
+  - component: {fileID: 384019423}
   m_Layer: 0
   m_Name: GenerationPreview
   m_TagString: Untagged
@@ -303,18 +332,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Polis.Unity::Polis.Unity.GenerationPreview
   mapSize: {x: 128, y: 128}
   settings:
-    UseSeed: 1
-    Seed: 1
-    Scale: 6
-    Octaves: 5
-    Lacunarity: 2
-    Persistence: 0.5
-    Redistribution: 1.8
-    MaxHeight: 32
-  lowColor: {r: 0.05, g: 0.1, b: 0.4, a: 1}
-  midColor: {r: 0.2, g: 0.65, b: 0.25, a: 1}
-  highColor: {r: 1, g: 1, b: 1, a: 1}
-  showGrid: 1
+    Elevation:
+      UseSeed: 1
+      Seed: 1
+      Scale: 6
+      Octaves: 5
+      Lacunarity: 2
+      Persistence: 0.5
+      Redistribution: 1.8
+      MaxHeight: 32
+      FlatnessScale: 2
+      FlatnessStrength: 0.9
+      FlatnessFromOctave: 2
+    Climate:
+      TemperatureScale: 1.5
+      MoistureScale: 2.5
+      ElevationCooling: 0.5
 --- !u!212 &384019421
 SpriteRenderer:
   serializedVersion: 3
@@ -375,6 +408,48 @@ SpriteRenderer:
   m_WasSpriteAssigned: 0
   m_SpriteSortPoint: 0
   m_BlendShapeWeights: []
+--- !u!114 &384019422
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 384019418}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba22a8d6d3daf1c4e8758e7273b0c485, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Polis.Unity::Polis.Unity.MapHost
+--- !u!114 &384019423
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 384019418}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c97502f5b804a24c9134c6ea9ab250e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Polis.Unity::Polis.Unity.TerrainView
+  shownField: 0
+  elevationColors:
+    Low: {r: 0.05, g: 0.1, b: 0.4, a: 1}
+    Mid: {r: 0.2, g: 0.65, b: 0.25, a: 1}
+    High: {r: 1, g: 1, b: 1, a: 1}
+  flatnessColors:
+    Low: {r: 0.3, g: 0.22, b: 0.2, a: 1}
+    Mid: {r: 0.75, g: 0.65, b: 0.4, a: 1}
+    High: {r: 0.85, g: 0.95, b: 0.7, a: 1}
+  temperatureColors:
+    Low: {r: 0.25, g: 0.4, b: 0.9, a: 1}
+    Mid: {r: 0.95, g: 0.9, b: 0.4, a: 1}
+    High: {r: 0.85, g: 0.2, b: 0.1, a: 1}
+  moistureColors:
+    Low: {r: 0.85, g: 0.7, b: 0.4, a: 1}
+    Mid: {r: 0.4, g: 0.7, b: 0.35, a: 1}
+    High: {r: 0.1, g: 0.35, b: 0.75, a: 1}
+  showGrid: 1
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
