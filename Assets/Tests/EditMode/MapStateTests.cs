@@ -5,7 +5,8 @@ namespace Polis.Sim.Tests
 {
     public class MapStateTests
     {
-        private static MapState StateOf(HeightMap heights) => new MapState(heights, new FloatMap(heights.Size));
+        private static MapState StateOf(HeightMap heights) =>
+            new MapState(heights, new FloatMap(heights.Size), new FloatMap(heights.Size), new FloatMap(heights.Size));
 
         [Test]
         public void Size_IsTheHeightMapsSizeInTiles()
@@ -37,18 +38,27 @@ namespace Polis.Sim.Tests
         {
             var heights = new HeightMap(2, 2);
             var flatness = new FloatMap(2, 2);
+            var temperature = new FloatMap(2, 2);
+            var moisture = new FloatMap(2, 2);
 
-            var state = new MapState(heights, flatness);
+            var state = new MapState(heights, flatness, temperature, moisture);
 
             Assert.AreSame(heights, state.Heights);
             Assert.AreSame(flatness, state.Flatness);
+            Assert.AreSame(temperature, state.Temperature);
+            Assert.AreSame(moisture, state.Moisture);
         }
 
         [Test]
         public void Constructor_NullMaps_Throw()
         {
-            Assert.Throws<ArgumentNullException>(() => new MapState(null, new FloatMap(2, 2)));
-            Assert.Throws<ArgumentNullException>(() => new MapState(new HeightMap(2, 2), null));
+            var h = new HeightMap(2, 2);
+            var f = new FloatMap(2, 2);
+
+            Assert.Throws<ArgumentNullException>(() => new MapState(null, f, f, f));
+            Assert.Throws<ArgumentNullException>(() => new MapState(h, null, f, f));
+            Assert.Throws<ArgumentNullException>(() => new MapState(h, f, null, f));
+            Assert.Throws<ArgumentNullException>(() => new MapState(h, f, f, null));
         }
     }
 }

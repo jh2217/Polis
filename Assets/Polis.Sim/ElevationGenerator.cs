@@ -59,11 +59,14 @@ namespace Polis.Sim
             public readonly HeightMap Heights;
             /// <summary>The flatness field in [0, 1] at every vertex, before FlatnessStrength is applied.</summary>
             public readonly FloatMap Flatness;
+            /// <summary>The seed the map was generated from: Settings.Seed, or the one drawn from the RNG. Other generators can share it.</summary>
+            public readonly ulong Seed;
 
-            public Result(HeightMap heights, FloatMap flatness)
+            public Result(HeightMap heights, FloatMap flatness, ulong seed)
             {
                 Heights = heights;
                 Flatness = flatness;
+                Seed = seed;
             }
         }
 
@@ -92,7 +95,7 @@ namespace Polis.Sim
                 float smooth = (float)Math.Pow(n, settings.Redistribution);
                 map[x, y] = (int)Math.Round(smooth * maxHeight);
             }
-            return new Result(map, flatnessMap);
+            return new Result(map, flatnessMap, seed);
         }
     }
 }

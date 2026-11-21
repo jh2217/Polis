@@ -85,6 +85,18 @@ namespace Polis.Sim.Tests
         }
 
         [Test]
+        public void Generate_Seed_IsTheSettingsSeedWhenUsed_OtherwiseTheOneDrawnFromTheRng()
+        {
+            var seeded = ElevationGenerator.Settings.Default;
+            seeded.UseSeed = true;
+            seeded.Seed = 77UL;
+            var unseeded = ElevationGenerator.Settings.Default;
+
+            Assert.AreEqual(77UL, ElevationGenerator.Generate(new MapSize(8, 8), new SimRng(1), seeded).Seed);
+            Assert.AreEqual(new SimRng(5).NextULong(), ElevationGenerator.Generate(new MapSize(8, 8), new SimRng(5), unseeded).Seed);
+        }
+
+        [Test]
         public void Generate_UseSeedOff_FallsBackToRng()
         {
             var s = ElevationGenerator.Settings.Default; // UseSeed == false
