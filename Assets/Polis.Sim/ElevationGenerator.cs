@@ -30,7 +30,7 @@ namespace Polis.Sim
             {
                 UseSeed = false,
                 Seed = 0,
-                Scale = 3f,
+                Scale = 6f,
                 Octaves = 5,
                 Lacunarity = 2f,
                 Persistence = 0.5f,
