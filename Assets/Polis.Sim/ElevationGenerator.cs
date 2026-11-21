@@ -25,6 +25,12 @@ namespace Polis.Sim
             public float Redistribution;
             /// <summary>Highest vertex height in height units (minimum 1); heights are whole numbers from 0 to this.</summary>
             public int MaxHeight;
+            /// <summary>Flatness noise features per map width; low values make large plains and large rough regions.</summary>
+            public float FlatnessScale;
+            /// <summary>0 to 1: how much of the fine-detail octaves is removed where flatness is highest (0 disables plains, 1 is as smooth as the settings allow).</summary>
+            public float FlatnessStrength;
+            /// <summary>First octave (0-based) that flatness suppresses; earlier octaves keep the large-scale shape.</summary>
+            public int FlatnessFromOctave;
 
             public static Settings Default => new Settings
             {
@@ -36,21 +42,35 @@ namespace Polis.Sim
                 Persistence = 0.5f,
                 Redistribution = 1.8f,
                 MaxHeight = 32,
+                FlatnessScale = 2f,
+                FlatnessStrength = 0.9f,
+                FlatnessFromOctave = 2,
             };
         }
+
+        // Keeps the flatness field independent of the elevation noise while sharing the same seed.
+        private const ulong FlatnessSeedSalt = 0xA24BAED4963EE407UL;
 
         /// <param name="size">Map size in tiles; heights are generated for every vertex, so (X + 1) by (Y + 1) of them.</param>
         public static HeightMap Generate(MapSize size, SimRng rng, Settings settings)
         {
-            var noise = new Noise(settings.UseSeed ? settings.Seed : rng.NextULong());
+            ulong seed = settings.UseSeed ? settings.Seed : rng.NextULong();
+            var elevationNoise = new Noise(seed);
+            var flatnessNoise = new Noise(seed ^ FlatnessSeedSalt);
             var map = new HeightMap(size);
-            float inv = settings.Scale / Math.Max(size.X, size.Y);
+            float extent = Math.Max(size.X, size.Y);
+            float elevationFrequency = settings.Scale / extent;
+            float flatnessFrequency = settings.FlatnessScale / extent;
+            float strength = Math.Min(1f, Math.Max(0f, settings.FlatnessStrength));
             int maxHeight = Math.Max(1, settings.MaxHeight);
 
             for (int y = 0; y < map.VertexSize.Y; y++)
             for (int x = 0; x < map.VertexSize.X; x++)
             {
-                float n = noise.Fbm(x * inv, y * inv, settings.Octaves, settings.Lacunarity, settings.Persistence);
+                float flatness = flatnessNoise.Value(x * flatnessFrequency, y * flatnessFrequency);
+                float detailScale = 1f - strength * flatness;
+                float n = elevationNoise.Fbm(x * elevationFrequency, y * elevationFrequency, settings.Octaves,
+                    settings.Lacunarity, settings.Persistence, settings.FlatnessFromOctave, detailScale);
                 float smooth = (float)Math.Pow(n, settings.Redistribution);
                 map[x, y] = (int)Math.Round(smooth * maxHeight);
             }

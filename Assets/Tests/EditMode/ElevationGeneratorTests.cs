@@ -94,6 +94,39 @@ namespace Polis.Sim.Tests
         }
 
         [Test]
+        public void Generate_FlatnessStrength_ReducesTileToTileRoughness()
+        {
+            var rough = ElevationGenerator.Settings.Default;
+            rough.UseSeed = true;
+            rough.Seed = 7;
+            rough.FlatnessStrength = 0f;
+            var flat = rough;
+            flat.FlatnessStrength = 1f;
+
+            float roughTotal = Roughness(ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(1), rough));
+            float flatTotal = Roughness(ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(1), flat));
+
+            Assert.Less(flatTotal, roughTotal);
+        }
+
+        [Test]
+        public void Generate_FlatnessStrengthZero_IgnoresFlatnessSettings()
+        {
+            var a = ElevationGenerator.Settings.Default;
+            a.UseSeed = true;
+            a.Seed = 3;
+            a.FlatnessStrength = 0f;
+            var b = a;
+            b.FlatnessScale = 9f;
+            b.FlatnessFromOctave = 0;
+
+            var mapA = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), a);
+            var mapB = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), b);
+
+            CollectionAssert.AreEqual(mapA.Data, mapB.Data);
+        }
+
+        [Test]
         public void Generate_UseSeedOff_IgnoresSeedValue()
         {
             var s1 = ElevationGenerator.Settings.Default;
@@ -103,6 +136,19 @@ namespace Polis.Sim.Tests
             var a = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(5), s1);
             var b = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(5), s2);
             CollectionAssert.AreEqual(a.Data, b.Data);
+        }
+
+        // Sum of height differences between horizontally and vertically adjacent vertices.
+        private static float Roughness(HeightMap map)
+        {
+            float total = 0f;
+            for (int y = 0; y < map.VertexSize.Y; y++)
+            for (int x = 0; x < map.VertexSize.X; x++)
+            {
+                if (x + 1 < map.VertexSize.X) total += System.Math.Abs(map[x + 1, y] - map[x, y]);
+                if (y + 1 < map.VertexSize.Y) total += System.Math.Abs(map[x, y + 1] - map[x, y]);
+            }
+            return total;
         }
     }
 }

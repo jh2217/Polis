@@ -32,13 +32,21 @@ namespace Polis.Sim
         /// Fractal Brownian motion: sums octaves, each at lacunarity x frequency and persistence x amplitude.
         /// Normalized so the result stays in [0, 1].
         /// </summary>
-        public float Fbm(float x, float y, int octaves, float lacunarity = 2f, float persistence = 0.5f)
+        public float Fbm(float x, float y, int octaves, float lacunarity = 2f, float persistence = 0.5f) =>
+            Fbm(x, y, octaves, lacunarity, persistence, octaves, 1f);
+
+        /// <summary>
+        /// Fbm where octaves from index `detailStart` on (0-based) have their amplitude multiplied by `detailScale`.
+        /// A scale of 1 matches the plain Fbm; 0 leaves only the first `detailStart` octaves. Stays in [0, 1].
+        /// </summary>
+        public float Fbm(float x, float y, int octaves, float lacunarity, float persistence, int detailStart, float detailScale)
         {
             float sum = 0f, amplitude = 1f, total = 0f, frequency = 1f;
             for (int i = 0; i < octaves; i++)
             {
-                sum += Value(x * frequency, y * frequency) * amplitude;
-                total += amplitude;
+                float weight = i >= detailStart ? amplitude * detailScale : amplitude;
+                sum += Value(x * frequency, y * frequency) * weight;
+                total += weight;
                 amplitude *= persistence;
                 frequency *= lacunarity;
             }
