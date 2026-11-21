@@ -305,11 +305,16 @@ MonoBehaviour:
   settings:
     UseSeed: 1
     Seed: 1
-    Scale: 3
+    Scale: 6
     Octaves: 5
     Lacunarity: 2
     Persistence: 0.5
     Redistribution: 1.8
+    MaxHeight: 32
+  lowColor: {r: 0.05, g: 0.1, b: 0.4, a: 1}
+  midColor: {r: 0.2, g: 0.65, b: 0.25, a: 1}
+  highColor: {r: 1, g: 1, b: 1, a: 1}
+  showGrid: 1
 --- !u!212 &384019421
 SpriteRenderer:
   serializedVersion: 3

@@ -18,6 +18,9 @@ namespace Polis.Unity
         [Tooltip("Outline every tile on the terrain. Toggle at runtime from the inspector.")]
         [SerializeField] private bool showGrid = true;
 
+        /// <summary>Raised after each Regenerate with the world-space bounds of the generated terrain.</summary>
+        public event System.Action<Bounds> Generated;
+
         private MeshFilter _meshFilter;
         private Material _material;
         private MeshFilter _gridFilter;
@@ -55,7 +58,9 @@ namespace Polis.Unity
             ApplyGridSettings();
             _meshFilter.sharedMesh = TerrainMeshBuilder.Build(map);
             _material.mainTexture = Heatmap.ToTexture(map, Mathf.Max(1, settings.MaxHeight), lowColor, midColor, highColor);
-            FrameCamera();
+
+            var size = new Vector3(mapSize.x, Mathf.Max(1, settings.MaxHeight) * TileShape.HeightUnitInTileWidths, mapSize.y);
+            Generated?.Invoke(new Bounds(transform.position + size * 0.5f, size));
         }
 
         private void EnsureTerrainObject()
@@ -92,21 +97,6 @@ namespace Polis.Unity
             s.UseSeed = true;
             s.Seed = 1;
             return s;
-        }
-
-        private void FrameCamera()
-        {
-            var cam = Camera.main;
-            if (cam == null) return;
-
-            float extent = Mathf.Max(mapSize.x, mapSize.y);
-            var center = transform.position + new Vector3(mapSize.x * 0.5f, 0f, mapSize.y * 0.5f);
-            var rotation = Quaternion.Euler(45f, 0f, 0f);
-
-            cam.orthographic = true;
-            cam.orthographicSize = extent * 0.5f;
-            cam.farClipPlane = extent * 4f;
-            cam.transform.SetPositionAndRotation(center + rotation * new Vector3(0f, 0f, -extent * 2f), rotation);
         }
     }
 }
