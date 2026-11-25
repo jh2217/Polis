@@ -125,6 +125,7 @@ namespace Polis.Sim.Tests
         public void Generate_Flatness_HasOneValueInUnitRangePerVertex_AndVaries()
         {
             var s = ElevationSettings.Default;
+            s.PlainSize = 100f; // several plains across the 40-tile map, so the field visibly varies
             var flatness = ElevationGenerator.Generate(new MapSize(40, 24), new SimRng(5), s).Flatness;
 
             Assert.AreEqual(41 * 25, flatness.Data.Length);
@@ -163,13 +164,31 @@ namespace Polis.Sim.Tests
             a.Seed = 3;
             a.FlatnessStrength = 0f;
             var b = a;
-            b.FlatnessScale = 9f;
+            b.PlainSize = 90f;
             b.FlatnessFromOctave = 0;
 
             var mapA = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), a).Heights;
             var mapB = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), b).Heights;
 
             CollectionAssert.AreEqual(mapA.Data, mapB.Data);
+        }
+
+        [Test]
+        public void Generate_LargerMap_ExtendsTheSameTerrainInsteadOfStretchingIt()
+        {
+            var s = ElevationSettings.Default;
+            s.UseSeed = true;
+            s.Seed = 11;
+
+            var small = ElevationGenerator.Generate(new MapSize(32, 32), new SimRng(1), s);
+            var large = ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(1), s);
+
+            for (int y = 0; y < small.Heights.VertexSize.Y; y++)
+            for (int x = 0; x < small.Heights.VertexSize.X; x++)
+            {
+                Assert.AreEqual(small.Heights[x, y], large.Heights[x, y], $"height at ({x}, {y})");
+                Assert.AreEqual(small.Flatness[x, y], large.Flatness[x, y], $"flatness at ({x}, {y})");
+            }
         }
 
         [Test]

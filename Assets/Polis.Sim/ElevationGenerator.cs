@@ -36,9 +36,9 @@ namespace Polis.Sim
             var flatnessNoise = new Noise(seed ^ FlatnessSeedSalt);
             var map = new HeightMap(size);
             var flatnessMap = new FloatMap(size);
-            float extent = Math.Max(size.X, size.Y);
-            float elevationFrequency = settings.Scale / extent;
-            float flatnessFrequency = settings.FlatnessScale / extent;
+            // Noise cycles per vertex: vertices are a tile apart, so a feature of the given size spans size / MetersPerTile of them.
+            float elevationFrequency = WorldScale.MetersPerTile / settings.HillSpacing;
+            float flatnessFrequency = WorldScale.MetersPerTile / settings.PlainSize;
 
             for (int y = 0; y < map.VertexSize.Y; y++)
             for (int x = 0; x < map.VertexSize.X; x++)

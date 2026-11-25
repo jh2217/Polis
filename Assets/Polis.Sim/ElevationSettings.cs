@@ -11,8 +11,8 @@ namespace Polis.Sim
         public bool UseSeed;
         /// <summary>Seed for deterministic generation of the same map; only used if UseSeed is true.</summary>
         public ulong Seed;
-        /// <summary>Noise features per map width (higher = busier terrain).</summary>
-        public float Scale;
+        /// <summary>The typical distance between hills, in metres; lower values make busier terrain. A larger map shows more hills, not bigger ones.</summary>
+        public float HillSpacing;
         /// <summary>Number of noise layers summed; more adds finer detail.</summary>
         public int Octaves;
         /// <summary>Frequency multiplier between successive octaves.</summary>
@@ -23,8 +23,8 @@ namespace Polis.Sim
         public float Redistribution;
         /// <summary>Highest vertex height in height units; heights are whole numbers from 0 to this.</summary>
         public int MaxHeight;
-        /// <summary>Flatness noise features per map width; low values make large plains and large rough regions.</summary>
-        public float FlatnessScale;
+        /// <summary>The typical width of plains, and of the rough land between them, in metres.</summary>
+        public float PlainSize;
         /// <summary>How much of the fine-detail octaves is removed where flatness is highest (0 disables plains, 1 is as smooth as the settings allow).</summary>
         public float FlatnessStrength;
         /// <summary>First octave (0-based) that flatness suppresses; earlier octaves keep the large-scale shape.</summary>
@@ -34,13 +34,13 @@ namespace Polis.Sim
         {
             UseSeed = false,
             Seed = 0,
-            Scale = 6f,
+            HillSpacing = 200f,
             Octaves = 5,
             Lacunarity = 2f,
             Persistence = 0.5f,
             Redistribution = 1.8f,
             MaxHeight = 32,
-            FlatnessScale = 2f,
+            PlainSize = 600f,
             FlatnessStrength = 0.9f,
             FlatnessFromOctave = 2,
         };
@@ -49,10 +49,10 @@ namespace Polis.Sim
         public ElevationSettings Validated()
         {
             var s = this;
-            s.Scale = Math.Max(0f, s.Scale);
+            s.HillSpacing = Math.Max(WorldScale.MetersPerTile, s.HillSpacing);
             s.Octaves = Math.Max(1, s.Octaves);
             s.MaxHeight = Math.Max(1, s.MaxHeight);
-            s.FlatnessScale = Math.Max(0f, s.FlatnessScale);
+            s.PlainSize = Math.Max(WorldScale.MetersPerTile, s.PlainSize);
             s.FlatnessStrength = Math.Clamp(s.FlatnessStrength, 0f, 1f);
             s.FlatnessFromOctave = Math.Max(0, s.FlatnessFromOctave);
             return s;

@@ -8,19 +8,19 @@ namespace Polis.Sim.Tests
         public void Validated_BringsEveryValueIntoItsRange()
         {
             var s = ElevationSettings.Default;
-            s.Scale = -1f;
+            s.HillSpacing = -1f;
             s.Octaves = 0;
             s.MaxHeight = 0;
-            s.FlatnessScale = -1f;
+            s.PlainSize = -1f;
             s.FlatnessStrength = 2f;
             s.FlatnessFromOctave = -1;
 
             var v = s.Validated();
 
-            Assert.AreEqual(0f, v.Scale);
+            Assert.AreEqual(WorldScale.MetersPerTile, v.HillSpacing);
             Assert.AreEqual(1, v.Octaves);
             Assert.AreEqual(1, v.MaxHeight);
-            Assert.AreEqual(0f, v.FlatnessScale);
+            Assert.AreEqual(WorldScale.MetersPerTile, v.PlainSize);
             Assert.AreEqual(1f, v.FlatnessStrength);
             Assert.AreEqual(0, v.FlatnessFromOctave);
         }
@@ -32,10 +32,10 @@ namespace Polis.Sim.Tests
 
             var v = d.Validated();
 
-            Assert.AreEqual(d.Scale, v.Scale);
+            Assert.AreEqual(d.HillSpacing, v.HillSpacing);
             Assert.AreEqual(d.Octaves, v.Octaves);
             Assert.AreEqual(d.MaxHeight, v.MaxHeight);
-            Assert.AreEqual(d.FlatnessScale, v.FlatnessScale);
+            Assert.AreEqual(d.PlainSize, v.PlainSize);
             Assert.AreEqual(d.FlatnessStrength, v.FlatnessStrength);
             Assert.AreEqual(d.FlatnessFromOctave, v.FlatnessFromOctave);
         }
