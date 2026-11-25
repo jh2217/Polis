@@ -5,10 +5,16 @@ namespace Polis.Sim.Tests
     public class TileShapeTests
     {
         [Test]
-        public void Constants_MatchTheDesign()
+        public void MaxSlope_IsTheMostHeightStepsThatFitInTheCliffRise()
         {
-            Assert.AreEqual(2, TileShape.MaxSlope);
-            Assert.AreEqual(0.5f, TileShape.HeightUnitInTileWidths);
+            Assert.LessOrEqual(TileShape.MaxSlope * WorldScale.MetersPerHeightUnit, TileShape.CliffRiseMeters);
+            Assert.Greater((TileShape.MaxSlope + 1) * WorldScale.MetersPerHeightUnit, TileShape.CliffRiseMeters);
+        }
+
+        [Test]
+        public void HeightUnitInTileWidths_KeepsTrueProportions()
+        {
+            Assert.AreEqual(WorldScale.MetersPerHeightUnit, TileShape.HeightUnitInTileWidths * WorldScale.MetersPerTile, 1e-5f);
         }
 
         [Test]
@@ -63,7 +69,7 @@ namespace Polis.Sim.Tests
             map[0, 0] = 0;
             map[1, 0] = TileShape.MaxSlope;
             map[0, 1] = TileShape.MaxSlope;
-            map[1, 1] = TileShape.MaxSlope * 2; // every edge drops by 2, but corner to corner is 4
+            map[1, 1] = TileShape.MaxSlope * 2; // every edge drops by MaxSlope, but corner to corner by twice that
 
             Assert.IsTrue(TileShape.Of(map, 0, 0).IsCliff);
         }

@@ -5,24 +5,28 @@ namespace Polis.Sim
     /// <summary>
     /// The surface of one tile, defined by the heights at its four corner vertices.
     /// Corner names are H{dx}{dy}: H10 is the vertex at (tx + 1, ty).
-    /// A tile can slope by at most maxSlope height units. If its raw corners differ by more, it is a
-    /// cliff tile: its top is clamped to the highest corner minus maxSlope, and the drop to the true
-    /// vertex height shows up as a vertical wall along the tile edge (built by the renderer).
+    /// A tile whose corners are all at one height is flat; one whose corners differ by up to MaxSlope height steps
+    /// (CliffRiseMeters) is a slope. If its raw corners differ by more, it is a cliff tile: its top is clamped to the
+    /// highest corner minus MaxSlope, and the drop to the true vertex height shows up as a vertical wall along the
+    /// tile edge (built by the renderer).
     /// </summary>
     public readonly struct TileShape
     {
-        /// <summary>Steepest slope a tile may have, in height units; anything steeper becomes a cliff.</summary>
-        public const int MaxSlope = 2;
+        /// <summary>The steepest rise a tile may have across it, in metres; steeper is a cliff (45 degrees on 10 m tiles).</summary>
+        public const float CliffRiseMeters = 10f;
 
-        /// <summary>World width of one height unit, in tile widths.</summary>
-        public const float HeightUnitInTileWidths = 0.5f;
+        /// <summary>The steepest slope a tile may have, in whole height steps (CliffRiseMeters); anything steeper is a cliff.</summary>
+        public const int MaxSlope = (int)(CliffRiseMeters / WorldScale.MetersPerHeightUnit);
+
+        /// <summary>The world height of one height step, in tile widths (true proportions).</summary>
+        public const float HeightUnitInTileWidths = WorldScale.MetersPerHeightUnit / WorldScale.MetersPerTile;
 
         public readonly int H00;
         public readonly int H10;
         public readonly int H01;
         public readonly int H11;
 
-        /// <summary>True when the raw corner heights differ by more than maxSlope.</summary>
+        /// <summary>True when the raw corner heights differ by more than MaxSlope.</summary>
         public readonly bool IsCliff;
 
         private TileShape(int h00, int h10, int h01, int h11, bool isCliff)

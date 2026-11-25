@@ -39,6 +39,7 @@ namespace Polis.Sim
             // Noise cycles per vertex: vertices are a tile apart, so a feature of the given size spans size / MetersPerTile of them.
             float elevationFrequency = WorldScale.MetersPerTile / settings.HillSpacing;
             float flatnessFrequency = WorldScale.MetersPerTile / settings.PlainSize;
+            int maxHeight = Math.Max(1, WorldScale.HeightUnitsIn(settings.MaxElevation));
 
             for (int y = 0; y < map.VertexSize.Y; y++)
             for (int x = 0; x < map.VertexSize.X; x++)
@@ -49,7 +50,7 @@ namespace Polis.Sim
                 float n = elevationNoise.Fbm(x * elevationFrequency, y * elevationFrequency, settings.Octaves,
                     settings.Lacunarity, settings.Persistence, settings.FlatnessFromOctave, detailScale);
                 float smooth = (float)Math.Pow(n, settings.Redistribution);
-                map[x, y] = (int)Math.Round(smooth * settings.MaxHeight);
+                map[x, y] = (int)Math.Round(smooth * maxHeight);
             }
             return new Result(map, flatnessMap, seed);
         }

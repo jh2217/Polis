@@ -70,10 +70,10 @@ namespace Polis.Sim.Tests
         [Test]
         public void TemperatureAtHeight_IsAboutSixAndAHalfDegreesColderOneKilometreUp()
         {
-            // A height unit is 5 m, so 200 units are 1 km.
             var climate = ClimateSettings.Default;
+            float oneKilometre = 1000f / WorldScale.MetersPerHeightUnit;
 
-            Assert.AreEqual(climate.SeaLevelTemperature - 6.5f, TemperatureGenerator.TemperatureAtHeight(200f, climate), 1e-3f);
+            Assert.AreEqual(climate.SeaLevelTemperature - 6.5f, TemperatureGenerator.TemperatureAtHeight(oneKilometre, climate), 1e-3f);
         }
 
         [Test]

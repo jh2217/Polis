@@ -21,8 +21,8 @@ namespace Polis.Sim
         public float Persistence;
         /// <summary>Power-curve exponent; above 1 pushes most land low (plains) and keeps peaks rare.</summary>
         public float Redistribution;
-        /// <summary>Highest vertex height in height units; heights are whole numbers from 0 to this.</summary>
-        public int MaxHeight;
+        /// <summary>The highest ground above the lowest, in metres; heights are whole height steps from 0 up to this.</summary>
+        public float MaxElevation;
         /// <summary>The typical width of plains, and of the rough land between them, in metres.</summary>
         public float PlainSize;
         /// <summary>How much of the fine-detail octaves is removed where flatness is highest (0 disables plains, 1 is as smooth as the settings allow).</summary>
@@ -39,7 +39,7 @@ namespace Polis.Sim
             Lacunarity = 2f,
             Persistence = 0.5f,
             Redistribution = 1.8f,
-            MaxHeight = 32,
+            MaxElevation = 160f,
             PlainSize = 600f,
             FlatnessStrength = 0.9f,
             FlatnessFromOctave = 2,
@@ -51,7 +51,7 @@ namespace Polis.Sim
             var s = this;
             s.HillSpacing = Math.Max(WorldScale.MetersPerTile, s.HillSpacing);
             s.Octaves = Math.Max(1, s.Octaves);
-            s.MaxHeight = Math.Max(1, s.MaxHeight);
+            s.MaxElevation = Math.Max(WorldScale.MetersPerHeightUnit, s.MaxElevation);
             s.PlainSize = Math.Max(WorldScale.MetersPerTile, s.PlainSize);
             s.FlatnessStrength = Math.Clamp(s.FlatnessStrength, 0f, 1f);
             s.FlatnessFromOctave = Math.Max(0, s.FlatnessFromOctave);

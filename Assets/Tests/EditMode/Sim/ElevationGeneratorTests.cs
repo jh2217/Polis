@@ -16,7 +16,7 @@ namespace Polis.Sim.Tests
         }
 
         [Test]
-        public void Generate_HeightsAreWholeNumbersWithinZeroAndMaxHeight_AndVary()
+        public void Generate_HeightsAreWholeStepsWithinZeroAndMaxElevation_AndVary()
         {
             var s = ElevationSettings.Default;
             var m = ElevationGenerator.Generate(new MapSize(64, 64), new SimRng(5), s).Heights;
@@ -24,7 +24,7 @@ namespace Polis.Sim.Tests
             foreach (int v in m.Data)
             {
                 Assert.GreaterOrEqual(v, 0);
-                Assert.LessOrEqual(v, s.MaxHeight);
+                Assert.LessOrEqual(v, WorldScale.HeightUnitsIn(s.MaxElevation));
                 if (v < min) min = v;
                 if (v > max) max = v;
             }
@@ -39,10 +39,10 @@ namespace Polis.Sim.Tests
         }
 
         [Test]
-        public void Generate_MaxHeightBelowOne_ClampsToOne()
+        public void Generate_MaxElevationBelowOneStep_StillGivesOneStep()
         {
             var s = ElevationSettings.Default;
-            s.MaxHeight = 0;
+            s.MaxElevation = 0f;
             var m = ElevationGenerator.Generate(new MapSize(16, 16), new SimRng(2), s).Heights;
             foreach (int v in m.Data)
                 Assert.IsTrue(v == 0 || v == 1, $"unexpected value {v}");
@@ -208,7 +208,7 @@ namespace Polis.Sim.Tests
         {
             var wild = ElevationSettings.Default;
             wild.FlatnessStrength = 2f;
-            wild.MaxHeight = 0;
+            wild.MaxElevation = 0f;
 
             var a = ElevationGenerator.Generate(new MapSize(16, 16), new SimRng(5), wild).Heights;
             var b = ElevationGenerator.Generate(new MapSize(16, 16), new SimRng(5), wild.Validated()).Heights;

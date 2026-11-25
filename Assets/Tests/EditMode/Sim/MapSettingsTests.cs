@@ -9,7 +9,7 @@ namespace Polis.Sim.Tests
         {
             var d = MapSettings.Default;
 
-            Assert.AreEqual(ElevationSettings.Default.MaxHeight, d.Elevation.MaxHeight);
+            Assert.AreEqual(ElevationSettings.Default.MaxElevation, d.Elevation.MaxElevation);
             Assert.AreEqual(ClimateSettings.Default.SeaLevelTemperature, d.Climate.SeaLevelTemperature);
             Assert.AreEqual(ClimateSettings.Default.AnnualPrecipitation, d.Climate.AnnualPrecipitation);
         }
@@ -18,12 +18,12 @@ namespace Polis.Sim.Tests
         public void Validated_ValidatesEveryPartsSettings()
         {
             var s = MapSettings.Default;
-            s.Elevation.MaxHeight = 0;
+            s.Elevation.MaxElevation = 0f;
             s.Climate.AirHumidity = 5f;
 
             var v = s.Validated();
 
-            Assert.AreEqual(1, v.Elevation.MaxHeight);
+            Assert.AreEqual(WorldScale.MetersPerHeightUnit, v.Elevation.MaxElevation);
             Assert.AreEqual(1f, v.Climate.AirHumidity);
         }
     }
