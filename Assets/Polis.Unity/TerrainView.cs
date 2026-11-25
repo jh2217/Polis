@@ -16,10 +16,16 @@ namespace Polis.Unity
         [SerializeField] private Ramp elevationColors = new Ramp(new Color(0.05f, 0.1f, 0.4f), new Color(0.2f, 0.65f, 0.25f), Color.white);
         [Tooltip("Flatness colors: low = rough terrain, high = flat terrain.")]
         [SerializeField] private Ramp flatnessColors = new Ramp(new Color(0.3f, 0.22f, 0.2f), new Color(0.75f, 0.65f, 0.4f), new Color(0.85f, 0.95f, 0.7f));
-        [Tooltip("Temperature colors: low = cold, high = hot.")]
+        [Tooltip("Temperature colors: low = coldest of the range below, high = hottest.")]
         [SerializeField] private Ramp temperatureColors = new Ramp(new Color(0.25f, 0.4f, 0.9f), new Color(0.95f, 0.9f, 0.4f), new Color(0.85f, 0.2f, 0.1f));
-        [Tooltip("Moisture colors: low = dry, high = wet.")]
-        [SerializeField] private Ramp moistureColors = new Ramp(new Color(0.85f, 0.7f, 0.4f), new Color(0.4f, 0.7f, 0.35f), new Color(0.1f, 0.35f, 0.75f));
+        [Tooltip("Temperatures in degrees C shown as the lowest and highest temperature color.")]
+        [SerializeField] private Vector2 temperatureRange = new Vector2(-10f, 30f);
+        [Tooltip("Precipitation colors: low = dry, high = wet.")]
+        [SerializeField] private Ramp precipitationColors = new Ramp(new Color(0.85f, 0.7f, 0.4f), new Color(0.4f, 0.7f, 0.35f), new Color(0.1f, 0.35f, 0.75f));
+        [Tooltip("Precipitation in mm per year shown as the lowest and highest precipitation color.")]
+        [SerializeField] private Vector2 precipitationRange = new Vector2(0f, 3000f);
+        [Tooltip("Surface humidity colors: low = dry air at ground level, high = saturated (fog).")]
+        [SerializeField] private Ramp surfaceHumidityColors = new Ramp(new Color(0.9f, 0.75f, 0.45f), new Color(0.55f, 0.8f, 0.7f), new Color(0.85f, 0.9f, 1f));
         [Tooltip("Outline every tile on the terrain. Toggle at runtime from the inspector.")]
         [SerializeField] private bool showGrid = true;
 
@@ -44,7 +50,8 @@ namespace Polis.Unity
             Elevation,
             Flatness,
             Temperature,
-            Moisture,
+            Precipitation,
+            SurfaceHumidity,
         }
 
         private MapHost _host;
@@ -107,9 +114,11 @@ namespace Polis.Unity
                 case DebugField.Flatness:
                     return Heatmap.ToTexture(_state.Flatness, flatnessColors.Low, flatnessColors.Mid, flatnessColors.High);
                 case DebugField.Temperature:
-                    return Heatmap.ToTexture(_state.Temperature, temperatureColors.Low, temperatureColors.Mid, temperatureColors.High);
-                case DebugField.Moisture:
-                    return Heatmap.ToTexture(_state.Moisture, moistureColors.Low, moistureColors.Mid, moistureColors.High);
+                    return Heatmap.ToTexture(_state.Temperature, temperatureRange.x, temperatureRange.y, temperatureColors.Low, temperatureColors.Mid, temperatureColors.High);
+                case DebugField.Precipitation:
+                    return Heatmap.ToTexture(_state.Precipitation, precipitationRange.x, precipitationRange.y, precipitationColors.Low, precipitationColors.Mid, precipitationColors.High);
+                case DebugField.SurfaceHumidity:
+                    return Heatmap.ToTexture(_state.SurfaceHumidity, 0f, 1f, surfaceHumidityColors.Low, surfaceHumidityColors.Mid, surfaceHumidityColors.High);
                 default:
                     return Heatmap.ToTexture(_state.Heights, _state.MaxHeight, elevationColors.Low, elevationColors.Mid, elevationColors.High);
             }

@@ -1,7 +1,7 @@
 namespace Polis.Sim
 {
     /// <summary>Seeded, stateless 2D value noise with fractal (fBm) layering. Output is in [0, 1].</summary>
-    public sealed class Noise
+    internal sealed class Noise
     {
         private readonly ulong _seed;
 

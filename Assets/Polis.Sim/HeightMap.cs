@@ -23,6 +23,15 @@ namespace Polis.Sim
 
         public HeightMap(int x, int y) : this(new MapSize(x, y)) { }
 
+        /// <summary>The heights as floats, one per vertex, in a new FloatMap with the same layout.</summary>
+        public FloatMap ToFloatMap()
+        {
+            var floats = new FloatMap(Size);
+            for (int i = 0; i < Data.Length; i++)
+                floats.Data[i] = Data[i];
+            return floats;
+        }
+
         public int Index(int vx, int vy) => vy * VertexSize.X + vx;
 
         public bool InBounds(int vx, int vy) => vx >= 0 && vy >= 0 && vx < VertexSize.X && vy < VertexSize.Y;

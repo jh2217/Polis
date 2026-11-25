@@ -2,7 +2,7 @@ using NUnit.Framework;
 using Polis.Unity;
 using UnityEngine;
 
-namespace Polis.Sim.Tests
+namespace Polis.Unity.Tests
 {
     public class CameraRigTests
     {

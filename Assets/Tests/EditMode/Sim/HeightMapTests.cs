@@ -40,5 +40,32 @@ namespace Polis.Sim.Tests
             var m = new HeightMap(new MapSize(5, 3));
             Assert.AreEqual(24, m.Data.Length);
         }
+
+        [Test]
+        public void ToFloatMap_CopiesEveryHeightAtTheSameVertex()
+        {
+            var m = new HeightMap(5, 3);
+            m[0, 0] = 2;
+            m[5, 3] = 7;
+
+            var floats = m.ToFloatMap();
+
+            Assert.AreEqual(5, floats.Size.X);
+            Assert.AreEqual(3, floats.Size.Y);
+            Assert.AreEqual(2f, floats[0, 0]);
+            Assert.AreEqual(7f, floats[5, 3]);
+            Assert.AreEqual(0f, floats[2, 1]);
+        }
+
+        [Test]
+        public void ToFloatMap_ReturnsACopy()
+        {
+            var m = new HeightMap(2, 2);
+
+            var floats = m.ToFloatMap();
+            floats[1, 1] = 9f;
+
+            Assert.AreEqual(0, m[1, 1]);
+        }
     }
 }

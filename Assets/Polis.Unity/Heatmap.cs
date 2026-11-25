@@ -25,6 +25,16 @@ namespace Polis.Unity
             return ToTexture(field, low, mid, high);
         }
 
+        /// <summary>Colors each vertex by where its value falls between min (low) and max (high); see the other FloatMap overload for the texture layout.</summary>
+        public static Texture2D ToTexture(FloatMap field, float min, float max, Color low, Color mid, Color high)
+        {
+            float inv = max > min ? 1f / (max - min) : 0f;
+            var normalized = new FloatMap(field.Size);
+            for (int i = 0; i < field.Data.Length; i++)
+                normalized.Data[i] = (field.Data[i] - min) * inv;
+            return ToTexture(normalized, low, mid, high);
+        }
+
         /// <summary>
         /// One pixel per vertex (so the texture is VertexSize, not Size), colored by the field value in [0, 1].
         /// Bilinear filtering blends between vertices, matching how tile surfaces are defined by their corners.

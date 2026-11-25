@@ -13,9 +13,12 @@ namespace Polis.Unity
     {
         // Vector2Int because Unity can't serialize the readonly MapSize; converted on use.
         [SerializeField] private Vector2Int mapSize = new Vector2Int(128, 128);
-        [SerializeField] private MapGenerator.Settings settings = SeededDefault();
+        [SerializeField] private MapSettings settings = SeededDefault();
 
         private void Start() => Regenerate();
+
+        // Snaps out-of-range inspector values back so the shown settings are the ones used.
+        private void OnValidate() => settings = settings.Validated();
 
         [ContextMenu("Regenerate")]
         public void Regenerate()
@@ -27,9 +30,9 @@ namespace Polis.Unity
         }
 
         // Field initializer for new components; existing ones keep their serialized values.
-        private static MapGenerator.Settings SeededDefault()
+        private static MapSettings SeededDefault()
         {
-            var s = MapGenerator.Settings.Default;
+            var s = MapSettings.Default;
             s.Elevation.UseSeed = true;
             s.Elevation.Seed = 1;
             return s;

@@ -1,8 +1,9 @@
 using NUnit.Framework;
+using Polis.Sim;
 using Polis.Unity;
 using UnityEngine;
 
-namespace Polis.Sim.Tests
+namespace Polis.Unity.Tests
 {
     public class HeatmapTests
     {
@@ -54,6 +55,46 @@ namespace Polis.Sim.Tests
             map[1, 1] = 4;
 
             var tex = Heatmap.ToTexture(map, 0, Low, Mid, High);
+            try
+            {
+                Assert.AreEqual((Color32)Low, (Color32)tex.GetPixel(1, 1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(tex);
+            }
+        }
+
+        [Test]
+        public void ToTexture_Range_ColorsByPositionBetweenMinAndMax()
+        {
+            var field = new FloatMap(3, 1);
+            field[0, 0] = -20f;
+            field[1, 0] = 10f;
+            field[2, 0] = 40f;
+            field[3, 0] = 100f; // above the range, so clamped to high
+
+            var tex = Heatmap.ToTexture(field, -20f, 40f, Low, Mid, High);
+            try
+            {
+                Assert.AreEqual((Color32)Low, (Color32)tex.GetPixel(0, 0));
+                Assert.AreEqual((Color32)Mid, (Color32)tex.GetPixel(1, 0));
+                Assert.AreEqual((Color32)High, (Color32)tex.GetPixel(2, 0));
+                Assert.AreEqual((Color32)High, (Color32)tex.GetPixel(3, 0));
+            }
+            finally
+            {
+                Object.DestroyImmediate(tex);
+            }
+        }
+
+        [Test]
+        public void ToTexture_EmptyRange_IsAllLow()
+        {
+            var field = new FloatMap(1, 1);
+            field[1, 1] = 5f;
+
+            var tex = Heatmap.ToTexture(field, 5f, 5f, Low, Mid, High);
             try
             {
                 Assert.AreEqual((Color32)Low, (Color32)tex.GetPixel(1, 1));
