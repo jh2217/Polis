@@ -1,4 +1,6 @@
 using NUnit.Framework;
+using Polis.Sim.Climate;
+using Polis.Sim.Terrain;
 
 namespace Polis.Sim.Tests
 {

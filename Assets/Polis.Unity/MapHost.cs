@@ -1,5 +1,6 @@
 using System;
 using Polis.Sim;
+using Polis.Sim.Terrain;
 using UnityEngine;
 
 namespace Polis.Unity

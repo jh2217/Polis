@@ -4,9 +4,11 @@
 
 - The game has a world map (coarse, for climate and site selection; not built yet) and a city map (10 m tiles, 2 m height steps), see section 3.0 of `hydrology-city-builder-design.md`. Algorithms both maps use (terrain noise, erosion, pit filling, flow routing, flow accumulation, rivers, drainage basins, biome lookup) must not assume the city map's scale: they work in cells and height steps, and anything needing metres takes a `GridScale` parameter instead of reading `CityScale` directly (`MapGenerator` passes `CityScale.Grid`).
 
+- Folders and namespaces match: `Assets/Polis.Sim/Grids/` is `Polis.Sim.Grids`. Each system has its own folder (`Grids`, `Terrain`, `Climate`; `Polis.Unity` has `Rendering`, `CameraControl`), and a new system gets a new one (e.g. `Hydrology/`). The map pipeline's entry point (`MapGenerator`, `MapSettings`, `MapState`) and shared basics (`CityScale`, `SimRng`) stay in the root namespace. Under `Polis.Unity`, avoid namespaces named after Unity types (`Camera`, `Terrain`), which would shadow them.
+
 ## Testing conventions
 
-- Test files map one to one to the classes they test: `Foo` in `Assets/Polis.Sim/Foo.cs` is tested by `FooTests` in `Assets/Tests/EditMode/Sim/FooTests.cs`; a class in `Assets/Polis.Unity` is tested in `Assets/Tests/EditMode/Unity` (assembly `Polis.Unity.Tests`). Sim tests must not reference `Polis.Unity`.
+- Test files map one to one to the classes they test and mirror their folders: `Foo` in `Assets/Polis.Sim/<Area>/Foo.cs` (namespace `Polis.Sim.<Area>`) is tested by `FooTests` in `Assets/Tests/EditMode/Sim/<Area>/FooTests.cs` (namespace `Polis.Sim.Tests.<Area>`); classes in `Assets/Polis.Unity` likewise in `Assets/Tests/EditMode/Unity` (assembly `Polis.Unity.Tests`). Sim tests must not reference `Polis.Unity`.
 - Do not put tests for one class in another class's test file.
 - Test properties and invariants, not the implementation's own formula: a test that recomputes the production expression (e.g. `1 - exp(-p / ref)`) passes whatever units or factors the code gets wrong. Prefer checks that would catch a wrong unit or scale, such as the same result for every direction, conserved totals, monotonicity, and known anchor values.
 - Keep tests independent of generated noise: switch off the noise-driven inputs (or use a fixed, noiseless fixture) instead of relying on seeded values and small margins.

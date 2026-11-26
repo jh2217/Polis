@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Polis.Sim.Grids;
 
 namespace Polis.Sim.Tests
 {

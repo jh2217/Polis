@@ -1,4 +1,5 @@
 using System;
+using Polis.Sim.Grids;
 
 namespace Polis.Sim
 {

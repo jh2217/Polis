@@ -1,4 +1,7 @@
 using System;
+using Polis.Sim.Climate;
+using Polis.Sim.Grids;
+using Polis.Sim.Terrain;
 
 namespace Polis.Sim
 {
