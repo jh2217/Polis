@@ -1,3 +1,9 @@
+# Rainfall simulation: wind sweep for the world map
+
+This model computes the climate of the **world map**, the coarse map on which the player picks a site (see section 3.0 of `hydrology-city-builder-design.md`). Each world-map cell stands for a large area, so the effects the model produces are real at that scale: rain shadows behind mountain ranges, wet windward slopes, and moisture decaying inland from the coast. The city map is a few km across, where real climate barely varies, so it does not run this model; it takes the climate of its site (temperature, annual precipitation, air humidity) and any river crossing the site from the world map.
+
+The model uses the grid conventions of the shared algorithms: it works on the world map's own cells and height steps, and its cell size and height step are parameters, not the city map's scale.
+
 ## 1. Grid conventions (vertex storage)
 
 Elevation and temperature are stored at **vertices** (tile corners), not tile centers. The moisture sweep also runs on vertices, so ridge crests keep their true height instead of being averaged away.
@@ -6,7 +12,7 @@ Elevation and temperature are stored at **vertices** (tile corners), not tile ce
 
 | Grid | Size | Holds |
 |---|---|---|
-| Vertex grid (`V`) | `(tilesX + 1) × (tilesY + 1)` | `terrainElevationV`, `temperatureV`, `isWaterV`, the optional inputs `backgroundLiftV` and `wetnessV`, and the sweep outputs `precipitationV`, `surfaceHumidityV`, `cloudWaterV`, `cloudBaseHeightV`, `cloudBaseElevationV`, `cloudThicknessV`, `fogV` |
+| Vertex grid (`V`) | `(tilesX + 1) × (tilesY + 1)` | `terrainElevationV`, `temperatureV`, `isWaterV`, the optional input `backgroundLiftV`, and the sweep outputs `precipitationV`, `surfaceHumidityV`, `cloudWaterV`, `cloudBaseHeightV`, `cloudBaseElevationV`, `cloudThicknessV`, `fogV` |
 | Tile grid (`T`) | `tilesX × tilesY` | Derived values for consumers that need one value per tile (water cellular automaton, fertility, buildings, biome queries) |
 
 Every field name carries its location as a suffix (`V` or `T`), and each grid has its own size and index helper:
@@ -50,6 +56,8 @@ float PerStep(float fractionPerTile, float stepLengthTiles)
 
 Additive rates (such as evaporation) are multiplied by the step length. Water deposited on the ground is recorded **per tile of travel**: the deposit in a step is divided by the step length. A diagonal vertex then holds the same precipitation depth as an axis-aligned vertex under the same conditions, and the two wind types are equally dry or wet for the same terrain.
 
+All three conversions (shares compound, amounts multiply, deposits divide) live in one step object built once per sweep, so the sweep itself only ever works per step and never converts inline. Mixing them up in place is the easiest way to make diagonal winds wetter or drier than axis winds.
+
 ### 1.6 Edges
 
 Boundary vertices represent half a cell and corner vertices a quarter. This is irrelevant for intensity fields such as precipitation depth. Any computation that sums water volume across vertices must weight each vertex by its area share. The exact conservation test (section 8) is run per lane, where the weighting is not needed.
@@ -58,7 +66,7 @@ Boundary vertices represent half a cell and corner vertices a quarter. This is i
 
 - **Temperature** is in °C.
 - **Elevation** is in meters of simulated height, and `lapseRate` is in °C per meter (the real-world figure is about 0.0065).
-- **Tile size for climate purposes** is `climateTileSizeMeters`, the real distance one tile represents in the climate model. It can be much larger than the building scale, so that a map of a few hundred tiles spans a plausible climate region.
+- **Tile size for climate purposes** is `climateTileSizeMeters`, the real distance one world-map cell represents, typically 0.5 to 1 km, so that a map of a few hundred cells spans a plausible climate region. It is much larger than the city map's 10 m tiles.
 - Game terrain is often vertically compressed compared with reality. Compensate by raising `lapseRate`, which stays a tuned value expressed in real units.
 - The display-only vertical exaggeration used by the renderer never enters the climate pipeline. Temperature and the sweep read simulation elevation only.
 
@@ -80,6 +88,8 @@ Water is measured in **capacity units**, where 1 is the capacity of air at `refe
 float CapacityFromTemperature(float tC)
     => MathF.Exp(capacityGrowth * (tC - referenceTemperature));
 ```
+
+`referenceTemperature` is a fixed constant, 15 °C (about 10 g of vapor per kg of air), and not the map's sea-level temperature. A warmer map's air therefore carries more water at the same humidity and rains more, and `precipitationReference` (section 6.3) means the same on every map.
 
 With temperature in real °C, a `capacityGrowth` of about 0.05 to 0.07 per °C matches the physics, and the constants can be checked against real figures. The Magnus formula (saturation vapor pressure of about `6.112 * exp(17.62 * T / (243.12 + T))` hPa, divided by its value at `referenceTemperature`) can replace the exponential for better accuracy near and below freezing. The closed forms in section 2.5 then become approximations, and the layer integral is evaluated numerically over about 8 slices.
 
@@ -117,37 +127,38 @@ float c0         = CapacityFromTemperature(parcelTemp);          // capacity at 
 
 ### 2.5 The moist layer
 
-The model assumes that **total water (vapor plus cloud) per unit of air is uniform** over a layer of depth `D` (`moistLayerDepth`, in meters) above the parcel base. A rising air parcel keeps its total water until it saturates, and a well-mixed lower layer keeps its water roughly uniform with height, so the assumption is the standard basis for finding where air saturates.
+The model assumes that **total water (vapor plus cloud) per unit of air is uniform** over a layer above the parcel base. A rising air parcel keeps its total water until it saturates, and a well-mixed lower layer keeps its water roughly uniform with height, so the assumption is the standard basis for finding where air saturates.
 
 **Capacity profile.** Capacity falls with height `z` above the base as `c0 * exp(-a * z)`, where `a = capacityGrowth * lapseRate` (per meter). At every height, vapor is the smaller of the total water `T` and the local capacity, and the remainder is cloud.
 
 **Derived quantities.**
 
 - **Saturation height** (the lifting condensation level, measured from the base): `zs = ln(c0 / T) / a` when `T < c0`, and 0 otherwise.
-- **Onset humidity:** the relative humidity `T / c0` below which no part of the layer saturates, `onsetHumidity = exp(-a * D)`. This replaces any hand-set condensation threshold. A deeper layer lowers the onset humidity.
+- **Onset humidity:** the relative humidity `T / c0` below which no part of the layer saturates. For a layer of depth `D` it is `exp(-a * D)`, so a deeper layer lowers it.
 - **Mean cloud water** over the layer, from integrating `max(0, T - c0 * exp(-a z))` over `0..D`.
 
+**The onset humidity is the setting** (`onsetHumidity`, shown to designers as the cloud formation humidity), not the layer depth. Across the layer the capacity falls by the factor `onsetHumidity`, whatever the elevation units, so with `k = -ln(onsetHumidity)` and heights measured as a share `u` of the layer, the cloud depends only on the humidity `h = T / c0` and `k`. No layer depth or elevation scale enters the partition. The depth in metres, `moistLayerDepth = k / a`, is derived and only used to express the cloud base and thickness in metres (section 2.9).
+
 ```csharp
-const float NoCloud = -1f;
-
-(float cloudMean, float saturationHeight) Partition(float T, float c0)
+(float cloudMean, float saturationShare, bool hasCloud) Partition(float T, float c0)
 {
-    if (T <= 0f) return (0f, NoCloud);
+    float h = T / c0;
+    if (h <= onsetHumidity) return (0f, 1f, false);                  // no part of the layer saturates
+    if (k < 1e-6f) return (T - c0, 0f, true);                        // onset 1: cloud only above full saturation
 
-    float zs = T >= c0 ? 0f : MathF.Log(c0 / T) / a;              // lifting condensation level
-    if (zs >= moistLayerDepth) return (0f, NoCloud);              // no part of the layer saturates
-
-    float cloudSum = T * (moistLayerDepth - zs)
-                   - c0 * (MathF.Exp(-a * zs) - MathF.Exp(-a * moistLayerDepth)) / a;
-    return (cloudSum / moistLayerDepth, zs);
+    float u = h >= 1f ? 0f : MathF.Log(1f / h) / k;                  // share of the layer below the saturation height
+    float cloudShare = h * (1f - u) - (MathF.Exp(-k * u) - MathF.Exp(-k)) / k;
+    return (Math.Clamp(cloudShare * c0, 0f, T), u, true);
 }
 ```
+
+The saturation height in metres is `saturationShare * moistLayerDepth`. Near the onset the cloud grows with the square of the excess humidity, about `(h - onset)^2 / (2 h k)` of `c0`, so it starts smoothly with no jump.
 
 The vapor in the layer is `T - cloudMean`. Cloud forms continuously as `T / c0` rises past the onset humidity, because the top of the layer saturates first and the saturated part grows downward.
 
 **Scale check.** With a `capacityGrowth` of 0.065 per °C and a lapse rate of 6.5 °C per km, `a` is about 0.42 per km. A 0.5 km layer has an onset humidity of about 0.81 and a 1 km layer about 0.66. Air at 80% relative humidity has a saturation height of about 0.5 km, the same order as the meteorological rule of thumb of about 125 m of lift per °C of dew-point depression.
 
-**Where the assumption holds and where it does not.** It holds in the well-mixed lower layer, typically the first kilometer or two over land, so `moistLayerDepth` stays in roughly the 0.5 to 1.5 km range. Above the mixed layer, vapor falls off much faster than air density, so a deep uniform layer overestimates the water aloft. Inversions and dry layers aloft are not represented. Section 2.9 describes what lies above the layer, and section 10 lists the limits.
+**Where the assumption holds and where it does not.** It holds in the well-mixed lower layer, typically the first kilometer or two over land, so sensible onset humidities are those giving a `moistLayerDepth` of roughly 0.5 to 1.5 km (an onset humidity of about 0.55 to 0.8 with the constants above). Above the mixed layer, vapor falls off much faster than air density, so a deep uniform layer overestimates the water aloft. Inversions and dry layers aloft are not represented. Section 2.9 describes what lies above the layer, and section 10 lists the limits.
 
 ### 2.6 Water conservation and the boundary condition
 
@@ -157,26 +168,25 @@ The sweep carries one state variable per lane, the **total water** `water` (capa
 
 ### 2.7 Precipitation
 
-Cloud rains out as it travels, losing a fraction per tile of travel. That fraction is calibrated from a **cloud delay time**, the lag between condensation and fallout in orographic precipitation theory (Smith and Barstad):
+Cloud rains out as it travels, losing a constant fraction `rainFractionPerTile` per tile of travel. The fraction can be calibrated from a **cloud delay time**, the lag between condensation and fallout in orographic precipitation theory (Smith and Barstad):
 
 ```csharp
-float precipFractionPerTile = 1f - MathF.Exp(-climateTileSizeMeters / (windSpeed * cloudDelaySeconds));
+float rainFractionPerTile = 1f - MathF.Exp(-climateTileSizeMeters / (windSpeed * cloudDelaySeconds));
 ```
 
 The characteristic fallout distance is `windSpeed * cloudDelaySeconds`. Reported delay times in the orographic precipitation literature range from a few hundred to about two thousand seconds. Because the cloud keeps traveling downwind, rainfall continues past the place where it condensed, and a longer delay or a faster wind moves the rain farther downwind, past the crest.
 
-Thicker cloud rains out more efficiently, so the per-tile fraction is multiplied by an efficiency curve of the cloud water:
-
 ```csharp
-float efficiency = SmoothStep(cloudThresholdLow, cloudThresholdHigh, cloudMean);
-float rain       = cloudMean * PerStep(efficiency * precipFractionPerTile, stepLength);
+float rain = cloudMean * PerStep(rainFractionPerTile, stepLength);
 ```
+
+The fraction is the same for thin and thick cloud. An efficiency curve over absolute cloud amounts (thicker cloud raining more efficiently) would stop cold, high air from raining at all, because its cloud is small in absolute terms however saturated it is. If such a curve is ever wanted, it has to measure the cloud relative to `c0`.
 
 ### 2.8 Rain on flat ground
 
 On flat ground the parcel elevation is constant, so `c0` is constant. Rain falls while the relative humidity `water / c0` is above the onset humidity: cloud forms in the upper layer, part of it rains out, `water` drops, and the humidity falls until it reaches the onset humidity. That gives a roughly exponential decay inland with a finite reach that depends on how far above onset the air entered.
 
-Below the onset humidity there is no cloud, and only other mechanisms produce rain: cloud carried from upwind (for example from a ridge), the optional background lift (section 5.1), the optional non-depleting background rain (section 5.2), and the optional land evaporation (section 5.6). A flat map whose boundary humidity is at or below the onset humidity is dry unless one of these is enabled, which is intended and is one of the levers for desert presets.
+Below the onset humidity there is no cloud, and only other mechanisms produce rain: cloud carried from upwind (for example from a ridge), evaporation from water surfaces, the optional background lift (section 5.1), and the optional non-depleting background rain (section 5.2). The ground's rain recycling (section 5.6) only gives back rain that fell, so it carries rain further inland but cannot start it. A flat map whose boundary humidity is at or below the onset humidity is dry unless one of these applies, which is intended and is one of the levers for desert presets.
 
 ### 2.9 Above the moist layer
 
@@ -205,68 +215,69 @@ float cloudThickness = hasCloud ? moistLayerDepth - satHeight : 0f;     // meter
 
 ### 3.1 Pseudocode
 
+The sweep visits vertices upwind first, row by row. A vertex's upwind neighbour is always in the previous row, or earlier in the same row for an east or west wind, so the state carried downwind (the parcel elevation and the total water, nothing else) is kept for two rows only, not the whole map. Everything else (capacities, cloud, humidities) is derived at the vertex.
+
 ```csharp
 void Sweep(int dx, int dy)
 {
-    float stepLen = (dx != 0 && dy != 0) ? 1.41421356f : 1f;
-    int lookaheadSteps = Math.Max(1, (int)MathF.Round(lookaheadTiles / stepLen));
+    var step = new WindStep(dx, dy);                              // length and per-step conversions (section 1.5)
+    int lookaheadSteps = Math.Max(1, (int)MathF.Round(lookaheadTiles / step.Length));
+    float rainShare = step.Share(rainFractionPerTile);
 
-    foreach (var lane in Lanes(dx, dy))                 // vertex indices, upwind -> downwind
+    foreach (int i in VerticesUpwindFirst(dx, dy))
     {
-        float[] ground = lane.Select(i => MathF.Max(terrainElevationV[i], seaLevel)).ToArray();
-        float parcelElev = ground[0];
-        float water = 0f;                               // total water, capacity units
+        bool hasUpwind = TryUpwind(i, out Carried up);           // from the previous row, or this row for east/west
+        float ground = MathF.Max(terrainElevationV[i], seaLevel);
 
-        for (int k = 0; k < lane.Length; k++)
-        {
-            int i = lane[k];
+        // --- parcel and the base of the moist layer (section 2.4)
+        float parcelElev = ParcelElevation(hasUpwind ? up.ParcelElev : ground, i, lookaheadSteps, step);
+        float baseElev = parcelElev + backgroundLiftV[i];        // lift is 0 unless enabled (section 5.1)
+        float c0 = CapacityFromTemperature(seaLevelTemperature - lapseRate * (baseElev - seaLevel));
+        float groundCapacity = CapacityFromTemperature(temperatureV[i]);
 
-            // --- parcel and the base of the moist layer (section 2.4)
-            UpdateParcelElevation(ref parcelElev, ground, k, lookaheadSteps, stepLen);
-            float baseElev = parcelElev + backgroundLiftV[i];        // lift is 0 unless enabled (section 5.1)
-            float c0 = CapacityFromTemperature(seaLevelTemperature - lapseRate * (baseElev - seaLevel));
-            float groundCapacity = CapacityFromTemperature(temperatureV[i]);
+        float water = hasUpwind ? up.Water : boundaryHumidity * c0;   // boundary condition (section 2.6)
 
-            if (k == 0) water = boundaryHumidity * c0;                // boundary condition (section 2.6)
+        // --- water surfaces add vapor until the surface air is saturated
+        if (isWaterV[i])
+            water += MathF.Min(step.Amount(evaporationRate), MathF.Max(0f, groundCapacity - water));
 
-            // --- evaporation adds water until the surface air is saturated
-            float evapRate = isWaterV[i] ? evaporationRate : landEvaporationRate * wetnessV[i];
-            if (evapRate > 0f)
-                water = MathF.Max(water, MathF.Min(water + evapRate * stepLen, groundCapacity));
+        // --- saturation adjustment over the moist layer (section 2.5)
+        var (cloud, satShare, hasCloud) = Partition(water, c0);
+        float satHeight = satShare * moistLayerDepth;
 
-            // --- saturation adjustment over the moist layer (section 2.5)
-            var (cloud, satHeight) = Partition(water, c0);
+        // --- precipitation (section 2.7)
+        float rain = cloud * rainShare;
+        water -= rain;
 
-            float surfaceRH = Clamp01(water / groundCapacity);
-            bool hasCloud = satHeight != NoCloud;
-            float baseHeightAboveGround = hasCloud ? baseElev + satHeight - ground[k] : float.NaN;
+        // --- sub-cloud evaporation (section 5.3)
+        float surfaceRH = Clamp01(water / groundCapacity);
+        float back = rain * subCloudEvaporation * (1f - surfaceRH);
+        water += back;
 
-            surfaceHumidityV[i]    = surfaceRH;
-            cloudWaterV[i]         = cloud;
-            cloudBaseElevationV[i] = hasCloud ? baseElev + satHeight : float.NaN;
-            cloudBaseHeightV[i]    = baseHeightAboveGround;
-            cloudThicknessV[i]     = hasCloud ? moistLayerDepth - satHeight : 0f;
+        // --- the ground gives back part of the rain that reached it (section 5.6)
+        float recycled = MathF.Min(rainRecycling * (rain - back), MathF.Max(0f, groundCapacity - water));
+        water += recycled;
 
-            // --- precipitation (section 2.7)
-            float efficiency = SmoothStep(cloudThresholdLow, cloudThresholdHigh, cloud);
-            float rain = cloud * PerStep(efficiency * precipFractionPerTile, stepLen);
-            water -= rain;
+        // --- fog and dew (section 4); both are 0 when disabled
+        float baseHeightAboveGround = hasCloud ? baseElev + satHeight - ground : float.NaN;
+        float fogIntensity = hasCloud ? 1f - SmoothStep(0f, fogLayerThickness, baseHeightAboveGround) : 0f;
+        float cloudLeft = cloud - rain;
+        float dew = cloudLeft * dewFactor * fogIntensity;
+        water -= dew;
 
-            // --- sub-cloud evaporation (section 5.3)
-            float back = rain * subCloudEvaporation * (1f - surfaceRH);
-            water += back;
+        // --- outputs
+        surfaceHumidityV[i]    = Clamp01(water / groundCapacity);
+        cloudWaterV[i]         = cloud;
+        cloudBaseElevationV[i] = hasCloud ? baseElev + satHeight : float.NaN;
+        cloudBaseHeightV[i]    = baseHeightAboveGround;
+        cloudThicknessV[i]     = hasCloud ? moistLayerDepth - satHeight : 0f;
+        fogV[i]                = (cloudLeft - dew) * fogFactor * fogIntensity;
 
-            // --- fog and dew (section 4); both are 0 when disabled
-            float fogIntensity = hasCloud ? 1f - SmoothStep(0f, fogLayerThickness, baseHeightAboveGround) : 0f;
-            float cloudLeft = cloud - rain;
-            float dew = cloudLeft * dewFactor * fogIntensity;
-            water -= dew;
-            fogV[i] = (cloudLeft - dew) * fogFactor * fogIntensity;
+        // --- deposits are recorded per tile of travel (section 1.5)
+        precipitationV[i] += step.PerTile(rain - back + dew);
+        precipitationV[i] += backgroundRainFraction * water;     // section 5.2; not conserving, 0 disables
 
-            // --- deposits are recorded per tile of travel (section 1.5)
-            precipitationV[i] += (rain - back + dew) / stepLen;
-            precipitationV[i] += backgroundRainFraction * water;     // section 5.2; not conserving, 0 disables
-        }
+        Carry(i, parcelElev, water);
     }
 }
 ```
@@ -277,7 +288,7 @@ Precipitation uses `+=` so several wind directions can be blended with weights (
 
 - Wet windward slopes and dry leeward slopes from capacity alone, with the parcel inertia placing both slightly ahead of and behind the crest.
 - Leeward dryness by the foehn mechanism: descending air warms, capacity rises, and the cloud evaporates back to vapor.
-- Roughly exponential inland decay while the humidity is above the onset humidity.
+- Inland decay while the humidity is above the onset humidity, stretched further inland the more of its rain the ground recycles.
 - Little moisture carried by cold, high-elevation air, because of its low capacity.
 - A cloud base height, a cloud thickness, and a surface humidity at every vertex (section 6).
 
@@ -332,9 +343,11 @@ temperatureV[i] -= (temperatureV[i] - moderateTemperature) * moistureV[i] * damp
 
 Wet vertices move toward a mild temperature, and dry vertices stay more extreme.
 
-### 5.6 Land evaporation and transpiration
+### 5.6 Rain recycling by the ground
 
-In reality land adds vapor too, which is why forested interiors stay wet. It creates a circular dependency, because evaporation depends on how wet the land is and that depends on the rain. Run it as a **fixed number of passes**: a first sweep without land evaporation, then `wetnessV` is set from that pass's `moistureV` (or from soil and vegetation), and a second sweep runs with `landEvaporationRate > 0`. `wetnessV` is 0 and `landEvaporationRate` is 0 when disabled.
+In reality land adds vapor too, which is why forested interiors stay wet, but only as much as its soil and plants hold, and that water comes from the rain. Open-water evaporation over all land would give every cell an unlimited source: dry air crossing a dry plain would moisten without limit and eventually rain everywhere.
+
+Instead, the ground gives back `rainRecycling` of the rain that reached it, in the same step, capped at the room left in the surface air (`groundCapacity - water`). Dry air over dry land stays dry, and rain on coasts and windward slopes is carried further inland, each tile passing on part of what fell on it. It runs in a single pass with no circular dependency, and conserves water: the air loses the rain minus what is recycled. Water surfaces evaporate on their own through `isWaterV`; soil wetness and vegetation can later scale `rainRecycling` per cell.
 
 ### 5.7 Second sweep direction
 
@@ -350,7 +363,7 @@ If lane striping or the fixed single direction is unacceptable, replace the lane
 
 | Output | Location | Meaning and use |
 |---|---|---|
-| `precipitationV` | Vertex | Raw rain deposited, in capacity units per tile of travel. Feeds the water simulation (converted to water depth) and the normalization below |
+| `precipitationV` | Vertex | Raw rain deposited, in capacity units per tile of travel. Feeds the normalization below and, at the chosen site, the city map's annual precipitation |
 | `moistureV` | Vertex | Normalized precipitation (0 to 1). Biome classification, soil and sand aridity, and other 0-to-1 weights |
 | `temperatureV` | Vertex | Final temperature in °C, after optional corrections |
 | `surfaceHumidityV` | Vertex | Relative humidity of the air at ground level, 0 to 1 (displayed as 0 to 100%). Crop stress, lake and canal evaporation, tooltips |
@@ -358,7 +371,7 @@ If lane striping or the fixed single direction is unacceptable, replace the lane
 | `cloudBaseElevationV` | Vertex | Height of the cloud base above sea level, in meters. `NaN` where there is no cloud |
 | `cloudThicknessV` | Vertex | Depth of the cloud in meters, from the cloud base to the top of the moist layer; 0 under clear sky. Capped at `moistLayerDepth` |
 | `cloudWaterV`, `fogV` | Vertex | Mean cloud water and fog intensity. Rendering, weather visuals, cloud-forest and fog biomes |
-| Tile versions (`VertexToTile`) | Tile | Water cellular automaton, fertility, buildings, tooltips |
+| Tile versions (`VertexToTile`) | Tile | World-map biome queries, site selection, tooltips |
 
 `surfaceHumidityV` is the total water divided by the capacity at the ground temperature, clamped to 1. Because the water is uniform in the layer, the vapor at ground level is the smaller of the two, so a value of 1 means the ground is inside the cloud. It uses the ground temperature (which includes elevation cooling and local noise), so cold ground reads as more humid.
 
@@ -381,7 +394,7 @@ moistureV = Clamp01(precipitationV / precipitationReference);
 temperature01 = Clamp01(InverseLerp(biomeTemperatureMin, biomeTemperatureMax, temperatureV));
 ```
 
-`precipitationReference` is the rain per vertex that counts as fully wet, in the sweep's units (capacity units per tile of travel). To calibrate it, generate several seeds with the wettest intended preset, take a high percentile (for example the 95th to 99th) of `precipitationV` over land vertices, and freeze that value. Recalibrate it whenever `boundaryHumidity`, `moistLayerDepth`, `cloudDelaySeconds`, `windSpeed`, `climateTileSizeMeters`, `capacityGrowth`, or the cloud thresholds change.
+`precipitationReference` is the rain per vertex that counts as fully wet, in the sweep's units (capacity units per tile of travel). To calibrate it, generate several seeds with the wettest intended preset, take a high percentile (for example the 95th to 99th) of `precipitationV` over land vertices, and freeze that value. Recalibrate it whenever the rain model changes (`onsetHumidity`, `rainFractionPerTile` or what calibrates it, `rainRecycling`, `capacityGrowth`). Climate inputs such as `boundaryHumidity` or `seaLevelTemperature` do not call for recalibration: a wetter or warmer preset is meant to read wetter.
 
 Use the raw `precipitationV` for anything that moves water, because the clamp in `moistureV` discards how much rain fell in the wettest places. Use `moistureV` and `temperature01` for classification and other 0-to-1 weights.
 
@@ -398,18 +411,17 @@ All values are starting points to tune by eye against the debug heatmaps.
 | `seaLevelTemperature` | Base temperature of the whole map at sea level, °C | Single constant; raise it for hot maps and lower it for cold ones |
 | `lapseRate` | Elevation cooling, °C per meter | About 0.0065 in reality; raise it if terrain is vertically compressed |
 | `capacityGrowth` | Exponential growth of capacity with temperature, per °C | About 0.05 to 0.07 |
-| `referenceTemperature` | Temperature at which capacity is 1 | Fixes the capacity units |
-| `moistLayerDepth` | Depth of the moist layer, meters | About 500 to 1500; sets the onset humidity `exp(-capacityGrowth * lapseRate * D)`, which is a read-only derived value to show in debug UI |
+| `referenceTemperature` | Temperature at which capacity is 1 | A fixed constant, 15 °C; fixes the capacity units |
+| `onsetHumidity` | Base relative humidity above which part of the moist layer saturates (the cloud formation humidity) | About 0.55 to 0.8; `moistLayerDepth = -ln(onsetHumidity) / (capacityGrowth * lapseRate)` is a read-only derived value to show in debug UI |
 | `boundaryHumidity` | Relative humidity of incoming air at the base of the column | The main wetness control |
-| `evaporationRate` | Water added over water per tile of travel | Capped at saturation of the surface air |
-| `windSpeed`, `cloudDelaySeconds`, `climateTileSizeMeters` | Calibrate the rain-out fraction per tile | Delay typically a few hundred to about 2000 s; the tile size is a climate scale and can be much larger than the build scale |
-| `cloudThresholdLow/High` | Cloud amounts where precipitation efficiency starts and saturates | Shapes the efficiency curve |
+| `evaporationRate` | Water added over water surfaces per tile of travel | Capped at saturation of the surface air |
+| `rainRecycling` | Share of the rain the ground gives back to the air | Sets how far rain reaches inland; 0 lets rain soak away for good |
+| `rainFractionPerTile` | Share of the cloud that rains per tile of travel | Can be calibrated from `windSpeed`, `cloudDelaySeconds` and `climateTileSizeMeters` (section 2.7); the delay is typically a few hundred to about 2000 s |
 | `lookaheadTiles`, `aheadWeight` | How far ahead and how strongly the parcel rises before terrain | Position of windward rain and the start of the shadow |
 | `riseRate`, `fallRate` | How quickly the parcel climbs and descends | `fallRate` slower than `riseRate` gives spillover past the crest |
 | `subCloudEvaporation` | Share of falling rain that evaporates in dry air | 0 disables it |
 | `backgroundLiftAmplitude` | Strength of patchy lift over flat ground | 0 disables it |
 | `backgroundRainFraction` | Non-depleting background rain per tile of travel | 0 disables it |
-| `landEvaporationRate` | Water added over land, scaled by `wetnessV` | 0 disables it; needs the two-pass run |
 | `secondWindWeight` | Blend weight of the second sweep direction | 0 disables it |
 | `leeWarming`, `warmthDecay` | Strength and carry distance of lee warming | Optional |
 | `dewFactor`, `fogFactor`, `fogLayerThickness` | Dew and fog strength, and how close to the ground the cloud base must be | Optional layer |
@@ -417,7 +429,7 @@ All values are starting points to tune by eye against the debug heatmaps.
 | `biomeTemperatureMin/Max` | Fixed range mapping °C to 0 to 1 for biomes | Same for every map |
 | `noiseAmplitude` | Breaks up banding | Small |
 
-The most influential knobs in practice are `seaLevelTemperature`, `lapseRate`, `capacityGrowth`, `boundaryHumidity`, `moistLayerDepth`, `cloudDelaySeconds`, and `lookaheadTiles`.
+The most influential knobs in practice are `seaLevelTemperature`, `lapseRate`, `capacityGrowth`, `boundaryHumidity`, `onsetHumidity`, `rainFractionPerTile`, `rainRecycling`, and `lookaheadTiles`.
 
 ## 8. Build and verification order
 
@@ -437,18 +449,18 @@ The most influential knobs in practice are `seaLevelTemperature`, `lapseRate`, `
 ### 8.2 Checks
 
 - **Grid indexing (shear test):** fill a vertex field with its own `x` coordinate, convert to tile values, and confirm each tile reads the midpoint of its corners. Repeat with `y`.
-- **Partition function:** cloud is 0 below the onset humidity and continuous across it, increases monotonically with total water, never exceeds the total water, and matches a numeric integration of the layer in thin slices.
+- **Partition function:** cloud is 0 below the onset humidity and continuous across it, increases monotonically with total water, never exceeds the total water, scales with the units the water is measured in, gives `T - c0` at an onset of 1, and matches a numeric integration of the layer in thin slices.
 - **Cloud base:** at a relative humidity of 1 the base sits at the base of the layer, and at 0.8 with the constants in section 2.5 it comes out near 0.5 km above the base, the same order as the dew-point rule of thumb.
 - **Cloud thickness:** it is 0 where there is no cloud, equals `moistLayerDepth` when the base of the layer is saturated, and decreases as the saturation height rises.
-- **Conservation (unit test, per lane):** boundary water plus the water added by evaporation (after the saturation cap) equals the water leaving the lane plus the sum of deposits, where each deposit is weighted by its step length because deposits are stored per tile of travel. Run it with `backgroundRainFraction` at 0, because that term does not conserve. Sub-cloud evaporation and dew conserve, so the balance must hold with them enabled, and land evaporation counts as input.
+- **Conservation (unit test, per lane):** boundary water plus the water added by evaporation (after the saturation cap) equals the water leaving the lane plus the sum of deposits, where each deposit is weighted by its step length because deposits are stored per tile of travel. Run it with `backgroundRainFraction` at 0, because that term does not conserve. Sub-cloud evaporation, dew and rain recycling conserve, so the balance must hold with them enabled (recycled water returns to the air and is subtracted from the deposits it came from), and evaporation from water surfaces counts as input.
 - **No negative values** in water, cloud, or precipitation.
 - **Determinism:** the same seed and settings give identical fields.
 - **Uniform terrain:** on perfectly flat terrain with no temperature noise, moisture is identical across lanes and varies only along the wind direction.
 - **Upwind edge:** with boundary humidity above the onset humidity, precipitation at the first vertex of a lane is already in line with the next few vertices, with no dry fringe.
-- **Flat plain:** with boundary humidity above the onset humidity, moisture decays monotonically inland from the upwind edge, roughly exponentially. With boundary humidity at or below the onset humidity and no other rain source enabled, a flat plain is dry.
+- **Flat plain:** with boundary humidity above the onset humidity, moisture decays monotonically inland from the upwind edge. With boundary humidity at or below the onset humidity and no water surfaces or other rain source, a flat plain is dry whatever `rainRecycling` is.
 - **Synthetic ridge:** a ridge row of vertices produces a wet windward side, rain beginning on the foothills before the crest, a dry leeward side that starts slightly behind the crest, and cloud base height dropping toward the windward slope and rising on the lee. If the contrast is too weak, raise `lapseRate` or `capacityGrowth` before adding any slope term.
 - **Wind symmetry:** the same terrain under an axis-aligned and a diagonal wind gives similar area-averaged precipitation within a tolerance, which confirms the step-length scaling and the per-tile-of-travel deposits.
-- **Presets:** the arid preset is mostly dry, with wetter spots near lakes, rivers, and windward highlands. If a desert map comes out green, lower `boundaryHumidity` or the evaporation rate before changing the wind direction.
+- **Presets:** the arid preset is mostly dry, with wetter spots near lakes, rivers, and windward highlands. If a desert map comes out green, lower `boundaryHumidity` or `rainRecycling` before changing the wind direction.
 - **Wind arrow consistency:** the arrow in the map preview matches the dry side of the ridges.
 - **Lane striping:** inspect the precipitation heatmap for visible lane lines, and apply the lateral smoothing if needed.
 
@@ -463,7 +475,7 @@ The same stores (total water with its vapor and cloud partition, and precipitati
 
 ## 10. Known limitations
 
-- The whole map is one climate band: there is no latitude gradient, so temperature varies only with elevation and noise, and climate contrasts come from wind, moisture, and terrain.
+- No latitude gradient in the base model, so temperature varies only with elevation and noise, and climate contrasts come from wind, moisture, and terrain. A world map spanning many degrees of latitude would add one to the sea-level temperature.
 - One prevailing wind direction for the whole map, snapped to 8 directions. Arbitrary angles need ray walking, grid rotation, or iterative advection (section 5.8).
 - Lanes are independent. Air cannot flow around a tall ridge or funnel through a gap, which overstates shadows behind narrow ranges and misses gap-driven rain. Lateral smoothing only hides the visible striping.
 - Parcel inertia is a lookahead heuristic and not fluid dynamics. Its tuning depends on the map's elevation scale.
@@ -474,7 +486,7 @@ The same stores (total water with its vapor and cloud partition, and precipitati
 - Cloud base uses the parcel temperature, and surface humidity uses the ground temperature including local noise, so the two can disagree slightly on noisy ground.
 - The rain-out fraction depends on the choice of a climate tile size, a wind speed, and a delay time, which are tuning values and not measurements.
 - No spatially varying wind, sea breezes, storms, or seasons in the static version.
-- Vegetation feedback is limited to the optional two-pass land evaporation to avoid circular dependencies.
+- Soil and vegetation feedback is limited to one rain-recycling share for all land; letting soil wetness or vegetation scale it per cell is the next step.
 
 ## 11. Glossary
 
@@ -485,8 +497,9 @@ The same stores (total water with its vapor and cloud partition, and precipitati
 - **Magnus formula:** an empirical formula for saturation vapor pressure, usable in place of the simple exponential.
 - **Parcel:** the unit of air carried along a lane, whose elevation is the base of the moist layer.
 - **Lane:** one line of vertices along the wind direction, processed upwind to downwind.
-- **Moist layer:** the layer of depth `moistLayerDepth` above the parcel base in which total water is assumed uniform.
-- **Onset humidity:** the base relative humidity below which no part of the moist layer saturates, `exp(-a * D)`.
+- **Moist layer:** the layer above the parcel base in which total water is assumed uniform; its depth `moistLayerDepth` follows from the onset humidity.
+- **Onset humidity:** the base relative humidity below which no part of the moist layer saturates; the setting from which the layer depth follows (`exp(-a * D)`).
+- **Rain recycling:** the share of the rain the ground evaporates back into the air.
 - **Saturation height (lifting condensation level):** the height above the layer base at which the layer first saturates.
 - **Cloud-base height:** the height of the cloud base above the ground, in meters.
 - **Cloud-base elevation:** the height of the cloud base above sea level, in meters.

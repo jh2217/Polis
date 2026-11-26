@@ -20,8 +20,30 @@ A tile-based city builder at roughly Age of Empires map scale (about 120×120 to
 | Irrigation | Surface canals using the existing water sim | Needs no underground construction |
 | Engine | **Unity 6 with C#** (Godot 4 is a viable alternative) | Strong precedent for this genre, good simulation tooling |
 | Architecture | Simulation lives in an engine-independent library | Headless testing and engine portability |
+| Map scale | One tile is 10 m (one cottage with its plot); a height step is 2 m; a tile rising more than 10 m across is a cliff | A city map is a few km across; every slope is at least one 2 m step (a 20% grade), so it reads as a slope from the angled camera. Gentle real slopes become small terraces, which is the expected stylized look |
+| Climate | Two maps: a coarse **world map** computes climate; the **city map** takes one regional climate from its site | At a few km, real climate barely varies (one region, about 1 °C across the relief); rain shadows and coast-to-interior gradients belong at world scale, as in Dwarf Fortress and RimWorld |
 
 ## 3. System design
+
+### 3.0 World map and city map
+
+The game has two maps. The **world map** is coarse (each cell stands for a large area) and exists to pick a site and give it a climate. The **city map** is where the player builds, at 10 m tiles. The world map is not built yet; the city map is built first and takes its regional climate as settings until then.
+
+| Algorithm | World map | City map |
+|---|---|---|
+| Fractal noise, redistribution curve, flatness field (3.1) | Continents and mountain ranges | Hills and plains |
+| Thermal and hydraulic erosion (3.1, 3.2) | Yes | Yes |
+| Pit filling, D8 flow direction, flow accumulation, river extraction, drainage basins (3.2) | Major rivers | Streams, and rivers entering from the map edge |
+| Validity check and reroll (3.2) | Is there a habitable site? | Is there a usable river and enough flat land? |
+| Whittaker biome lookup (3.1) | From the computed climate fields | From the regional climate plus local wetness |
+| Wind-sweep climate with rain shadows (`rainfall-simulation-sweep-design.md`), latitude, sea level and coastlines | Yes | No |
+| Site selection, producing the city map's regional climate and river inflow | Yes | No |
+| Surface water, groundwater, player water tools, irrigation, sewage, economy (3.3 to 3.7) | No | Yes |
+| Camera, X-ray, overlays (3.8) | Simple top-down view | Yes |
+
+**Shared algorithms do not assume the city's scale.** The algorithms in both columns work in cells and height steps. Anything that needs metres (cell size, height step, a slope threshold) takes the scale as a parameter instead of reading the city map's scale directly, so the world map can reuse them.
+
+**The world map feeds the city map.** The site's climate becomes the city map's regional climate settings, and a large river crossing the site enters the city map at an edge with a given flow, so city hydrology takes edge inflow as an input.
 
 ### 3.1 Terrain generation (runs once, at map creation)
 
@@ -31,11 +53,15 @@ The goal is varied land (mountains, plains, valleys, deserts, wetlands), not one
 
 **Plains.** Generate a second, low-frequency "flatness/roughness" noise field. Use it to scale down the high-frequency octaves where it is high. This is the same principle Minecraft 1.18 uses: a separate field controls how much detail is allowed through, rather than smoothing elevation after the fact. Thermal erosion (material slumping off slopes steeper than a threshold) can clean up leftover bumps.
 
-**Biomes.** Do not derive biome from elevation alone. Generate independent temperature and moisture fields, then classify biome with a Whittaker-style 2D lookup (temperature vs. moisture). Optionally add a rain-shadow pass: walk the prevailing wind direction and reduce moisture on the leeward side of tall terrain, so deserts appear behind mountains for a physical reason. Dwarf Fortress takes a similar multi-field approach (separate elevation, rainfall, temperature, drainage, and other fields), and rejects and regenerates worlds that fail the player's constraints.
+**Feature sizes in metres.** Hill spacing and plain size are given in metres, not per map width, so a larger map shows more land at the same scale instead of the same land stretched.
+
+**Climate on the city map.** Temperature is the region's sea-level temperature cooled with height by the standard lapse rate (6.5 °C per km); there is no temperature noise, since real local differences at this scale come from terrain, water and vegetation. Precipitation is the region's annual amount (mm per year) everywhere on the map, and surface humidity is the region's air humidity read against each vertex's ground temperature. Biome indices use fixed scales, the same for every map.
+
+**Biomes.** Do not derive biome from elevation alone. Classify biome with a Whittaker-style 2D lookup (temperature vs. moisture). On the world map, temperature and rainfall fields come from the climate model, including a rain-shadow pass that walks the prevailing wind and dries the leeward side of tall terrain, so deserts appear behind mountains for a physical reason (`rainfall-simulation-sweep-design.md`). On the city map the regional climate is one point on the diagram, and variety within the map comes from local wetness (river banks, floodplains, a shallow water table, marshes) and slope. Dwarf Fortress takes a similar multi-field approach (separate elevation, rainfall, temperature, drainage, and other fields), and rejects and regenerates worlds that fail the player's constraints.
 
 ### 3.2 Static hydrology (also at map creation)
 
-1. **Pit filling.** Noise terrain has many tiny local minima where flow would stop. Fill them (priority-flood or similar) so every cell drains somewhere.
+1. **Pit filling.** Noise terrain has many tiny local minima where flow would stop. Fill them (priority-flood or similar) so every cell drains somewhere. Heights are whole 2 m steps, so the terrain has large flats (terraces, and the filled pits themselves) with no downhill direction; resolve flow across flats (priority-flood with flat resolution, or a tiny epsilon gradient toward the flat's outlet) so water still leaves them.
 2. **D8 flow direction.** Each cell points to its steepest-descent neighbor among 8.
 3. **Flow accumulation.** Count how much upstream area drains through each cell (process in topological order, not recursively). High accumulation becomes rivers; width scales with flow.
 4. **Erosion.** Droplet-based hydraulic erosion (droplets pick up sediment when fast and deposit it when slow) carves valleys along the flow paths. Re-run flow routing afterward.
@@ -126,8 +152,8 @@ Farm fields and roads can be ground-texture overlays rather than meshes. If you 
 5. Noise library (Simplex or Perlin, fractal octaves).
 6. Elevation generator with redistribution curve.
 7. Flatness/roughness field gating the high octaves.
-8. Temperature and moisture fields, optional rain shadow.
-9. Biome classifier (Whittaker lookup) producing IDs and splat weights.
+8. City map climate: temperature cooled with height, the region's precipitation, surface humidity. (The world map's climate, with rain shadows, comes with the world map.)
+9. Biome classifier (Whittaker lookup) producing IDs and splat weights. On the city map, best done after Phase 2, once local wetness exists.
 10. Splat-map terrain shader.
 
 *Done when:* different seeds give visibly distinct mountains, plains, and biomes.
@@ -214,7 +240,8 @@ Farm fields and roads can be ground-texture overlays rather than meshes. If you 
 - **Phases 3–5 are the real MVP.** If water behaves convincingly on grey boxes, the project works. Phases 7–9 turn it into a game.
 - **Do not skip** the debug visualizer (3), the headless tests (26), the command layer (31), or the map validity check (18). They are cheap early and expensive to retrofit.
 - **The risky parts are early on purpose.** The water CA and its coupling to groundwater decide whether the concept works; the economy is conventional.
-- **First cuts if scope grows:** hydraulic erosion (noise plus thermal erosion is enough), the rain-shadow pass, terrain X-ray, gates, and the whole pollution phase.
+- **First cuts if scope grows:** hydraulic erosion (noise plus thermal erosion is enough), the world map (the city map works with a hand-picked regional climate), terrain X-ray, gates, and the whole pollution phase.
+- **World map:** terrain and static hydrology at world scale with the shared algorithms, the wind-sweep climate, then site selection feeding the city map's regional climate and river inflow.
 - **Future doors left open:** underground construction (qanats as underground irrigation tunnels are a natural first use), pumps and waterwheels as the historically honest way to move water uphill, and a real sewage pipe network.
 
 ## 8. Reference material

@@ -1,5 +1,9 @@
 # Polis
 
+## Architecture
+
+- The game has a world map (coarse, for climate and site selection; not built yet) and a city map (10 m tiles, 2 m height steps), see section 3.0 of `hydrology-city-builder-design.md`. Algorithms both maps use (terrain noise, erosion, pit filling, flow routing, flow accumulation, rivers, drainage basins, biome lookup) must not assume the city map's scale: they work in cells and height steps, and anything needing metres takes the scale as a parameter instead of reading `WorldScale` directly.
+
 ## Testing conventions
 
 - Test files map one to one to the classes they test: `Foo` in `Assets/Polis.Sim/Foo.cs` is tested by `FooTests` in `Assets/Tests/EditMode/Sim/FooTests.cs`; a class in `Assets/Polis.Unity` is tested in `Assets/Tests/EditMode/Unity` (assembly `Polis.Unity.Tests`). Sim tests must not reference `Polis.Unity`.
