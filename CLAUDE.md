@@ -2,7 +2,7 @@
 
 ## Architecture
 
-- The game has a world map (coarse, for climate and site selection; not built yet) and a city map (10 m tiles, 2 m height steps), see section 3.0 of `hydrology-city-builder-design.md`. Algorithms both maps use (terrain noise, erosion, pit filling, flow routing, flow accumulation, rivers, drainage basins, biome lookup) must not assume the city map's scale: they work in cells and height steps, and anything needing metres takes the scale as a parameter instead of reading `WorldScale` directly.
+- The game has a world map (coarse, for climate and site selection; not built yet) and a city map (10 m tiles, 2 m height steps), see section 3.0 of `hydrology-city-builder-design.md`. Algorithms both maps use (terrain noise, erosion, pit filling, flow routing, flow accumulation, rivers, drainage basins, biome lookup) must not assume the city map's scale: they work in cells and height steps, and anything needing metres takes a `GridScale` parameter instead of reading `CityScale` directly (`MapGenerator` passes `CityScale.Grid`).
 
 ## Testing conventions
 

@@ -16,10 +16,10 @@ namespace Polis.Sim
         public const float CliffRiseMeters = 10f;
 
         /// <summary>The steepest slope a tile may have, in whole height steps (CliffRiseMeters); anything steeper is a cliff.</summary>
-        public const int MaxSlope = (int)(CliffRiseMeters / WorldScale.MetersPerHeightUnit);
+        public const int MaxSlope = (int)(CliffRiseMeters / CityScale.MetersPerHeightUnit);
 
         /// <summary>The world height of one height step, in tile widths (true proportions).</summary>
-        public const float HeightUnitInTileWidths = WorldScale.MetersPerHeightUnit / WorldScale.MetersPerTile;
+        public const float HeightUnitInTileWidths = CityScale.MetersPerHeightUnit / CityScale.MetersPerTile;
 
         public readonly int H00;
         public readonly int H10;

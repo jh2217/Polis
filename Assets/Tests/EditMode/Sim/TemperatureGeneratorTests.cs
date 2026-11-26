@@ -71,7 +71,7 @@ namespace Polis.Sim.Tests
         public void TemperatureAtHeight_IsAboutSixAndAHalfDegreesColderOneKilometreUp()
         {
             var climate = ClimateSettings.Default;
-            float oneKilometre = 1000f / WorldScale.MetersPerHeightUnit;
+            float oneKilometre = 1000f / CityScale.MetersPerHeightUnit;
 
             Assert.AreEqual(climate.SeaLevelTemperature - 6.5f, TemperatureGenerator.TemperatureAtHeight(oneKilometre, climate), 1e-3f);
         }

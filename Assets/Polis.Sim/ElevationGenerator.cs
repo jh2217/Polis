@@ -27,8 +27,9 @@ namespace Polis.Sim
             }
         }
 
-        /// <param name="size">Map size in tiles; values are generated for every vertex, so (X + 1) by (Y + 1) of them.</param>
-        public static Result Generate(MapSize size, SimRng rng, ElevationSettings settings)
+        /// <param name="size">Map size in cells; values are generated for every vertex, so (X + 1) by (Y + 1) of them.</param>
+        /// <param name="scale">The real size of a cell and a height step, which turns the settings' metres into cells and steps.</param>
+        public static Result Generate(MapSize size, SimRng rng, ElevationSettings settings, GridScale scale)
         {
             settings = settings.Validated();
             ulong seed = settings.UseSeed ? settings.Seed : rng.NextULong();
@@ -36,10 +37,10 @@ namespace Polis.Sim
             var flatnessNoise = new Noise(seed ^ FlatnessSeedSalt);
             var map = new HeightMap(size);
             var flatnessMap = new FloatMap(size);
-            // Noise cycles per vertex: vertices are a tile apart, so a feature of the given size spans size / MetersPerTile of them.
-            float elevationFrequency = WorldScale.MetersPerTile / settings.HillSpacing;
-            float flatnessFrequency = WorldScale.MetersPerTile / settings.PlainSize;
-            int maxHeight = Math.Max(1, WorldScale.HeightUnitsIn(settings.MaxElevation));
+            // Noise cycles per vertex: vertices are a cell apart, so a feature of the given size spans size / MetersPerCell of them.
+            float elevationFrequency = scale.MetersPerCell / settings.HillSpacing;
+            float flatnessFrequency = scale.MetersPerCell / settings.PlainSize;
+            int maxHeight = Math.Max(1, scale.HeightStepsIn(settings.MaxElevation));
 
             for (int y = 0; y < map.VertexSize.Y; y++)
             for (int x = 0; x < map.VertexSize.X; x++)

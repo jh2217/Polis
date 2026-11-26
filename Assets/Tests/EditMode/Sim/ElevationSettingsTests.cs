@@ -17,10 +17,10 @@ namespace Polis.Sim.Tests
 
             var v = s.Validated();
 
-            Assert.AreEqual(WorldScale.MetersPerTile, v.HillSpacing);
+            Assert.AreEqual(ElevationSettings.MinFeatureSize, v.HillSpacing);
             Assert.AreEqual(1, v.Octaves);
-            Assert.AreEqual(WorldScale.MetersPerHeightUnit, v.MaxElevation);
-            Assert.AreEqual(WorldScale.MetersPerTile, v.PlainSize);
+            Assert.AreEqual(0f, v.MaxElevation);
+            Assert.AreEqual(ElevationSettings.MinFeatureSize, v.PlainSize);
             Assert.AreEqual(1f, v.FlatnessStrength);
             Assert.AreEqual(0, v.FlatnessFromOctave);
         }

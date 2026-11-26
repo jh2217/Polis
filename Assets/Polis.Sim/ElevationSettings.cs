@@ -11,6 +11,8 @@ namespace Polis.Sim
         public bool UseSeed;
         /// <summary>Seed for deterministic generation of the same map; only used if UseSeed is true.</summary>
         public ulong Seed;
+        /// <summary>The smallest HillSpacing and PlainSize allowed, in metres; the generator divides by them.</summary>
+        public const float MinFeatureSize = 1f;
         /// <summary>The typical distance between hills, in metres; lower values make busier terrain. A larger map shows more hills, not bigger ones.</summary>
         public float HillSpacing;
         /// <summary>Number of noise layers summed; more adds finer detail.</summary>
@@ -21,7 +23,7 @@ namespace Polis.Sim
         public float Persistence;
         /// <summary>Power-curve exponent; above 1 pushes most land low (plains) and keeps peaks rare.</summary>
         public float Redistribution;
-        /// <summary>The highest ground above the lowest, in metres; heights are whole height steps from 0 up to this.</summary>
+        /// <summary>The highest ground above the lowest, in metres; heights are whole height steps from 0 up to this, and at least one step.</summary>
         public float MaxElevation;
         /// <summary>The typical width of plains, and of the rough land between them, in metres.</summary>
         public float PlainSize;
@@ -49,10 +51,10 @@ namespace Polis.Sim
         public ElevationSettings Validated()
         {
             var s = this;
-            s.HillSpacing = Math.Max(WorldScale.MetersPerTile, s.HillSpacing);
+            s.HillSpacing = Math.Max(MinFeatureSize, s.HillSpacing);
             s.Octaves = Math.Max(1, s.Octaves);
-            s.MaxElevation = Math.Max(WorldScale.MetersPerHeightUnit, s.MaxElevation);
-            s.PlainSize = Math.Max(WorldScale.MetersPerTile, s.PlainSize);
+            s.MaxElevation = Math.Max(0f, s.MaxElevation);
+            s.PlainSize = Math.Max(MinFeatureSize, s.PlainSize);
             s.FlatnessStrength = Math.Clamp(s.FlatnessStrength, 0f, 1f);
             s.FlatnessFromOctave = Math.Max(0, s.FlatnessFromOctave);
             return s;

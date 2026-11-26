@@ -18,12 +18,12 @@ namespace Polis.Sim.Tests
         public void Validated_ValidatesEveryPartsSettings()
         {
             var s = MapSettings.Default;
-            s.Elevation.MaxElevation = 0f;
+            s.Elevation.HillSpacing = -5f;
             s.Climate.AirHumidity = 5f;
 
             var v = s.Validated();
 
-            Assert.AreEqual(WorldScale.MetersPerHeightUnit, v.Elevation.MaxElevation);
+            Assert.AreEqual(ElevationSettings.MinFeatureSize, v.Elevation.HillSpacing);
             Assert.AreEqual(1f, v.Climate.AirHumidity);
         }
     }

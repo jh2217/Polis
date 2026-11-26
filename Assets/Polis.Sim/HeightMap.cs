@@ -11,7 +11,7 @@ namespace Polis.Sim
         public readonly MapSize Size;
         /// <summary>Vertex-grid dimensions: one more than Size in each direction.</summary>
         public readonly MapSize VertexSize;
-        /// <summary>Height at each vertex, in whole height steps of WorldScale.MetersPerHeightUnit.</summary>
+        /// <summary>Height at each vertex, in whole height steps of CityScale.MetersPerHeightUnit.</summary>
         public readonly int[] Data;
 
         public HeightMap(MapSize size)

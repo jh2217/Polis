@@ -33,7 +33,7 @@ namespace Polis.Sim
         /// <summary>Map size in tiles.</summary>
         public MapSize Size => Heights.Size;
 
-        /// <summary>Highest vertex height in the map, in height steps (see WorldScale.MetersPerHeightUnit).</summary>
+        /// <summary>Highest vertex height in the map, in height steps (see CityScale.MetersPerHeightUnit).</summary>
         public int MaxHeight { get; }
 
         public MapState(HeightMap heights, FloatMap flatness, FloatMap temperature, FloatMap temperatureIndex, FloatMap precipitation, FloatMap precipitationIndex, FloatMap surfaceHumidity)

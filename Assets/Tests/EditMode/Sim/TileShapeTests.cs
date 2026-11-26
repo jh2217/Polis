@@ -7,14 +7,14 @@ namespace Polis.Sim.Tests
         [Test]
         public void MaxSlope_IsTheMostHeightStepsThatFitInTheCliffRise()
         {
-            Assert.LessOrEqual(TileShape.MaxSlope * WorldScale.MetersPerHeightUnit, TileShape.CliffRiseMeters);
-            Assert.Greater((TileShape.MaxSlope + 1) * WorldScale.MetersPerHeightUnit, TileShape.CliffRiseMeters);
+            Assert.LessOrEqual(TileShape.MaxSlope * CityScale.MetersPerHeightUnit, TileShape.CliffRiseMeters);
+            Assert.Greater((TileShape.MaxSlope + 1) * CityScale.MetersPerHeightUnit, TileShape.CliffRiseMeters);
         }
 
         [Test]
         public void HeightUnitInTileWidths_KeepsTrueProportions()
         {
-            Assert.AreEqual(WorldScale.MetersPerHeightUnit, TileShape.HeightUnitInTileWidths * WorldScale.MetersPerTile, 1e-5f);
+            Assert.AreEqual(CityScale.MetersPerHeightUnit, TileShape.HeightUnitInTileWidths * CityScale.MetersPerTile, 1e-5f);
         }
 
         [Test]

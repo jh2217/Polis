@@ -1,12 +1,11 @@
-using System;
-
 namespace Polis.Sim
 {
     /// <summary>
-    /// How big the city map is in the real world. These two values are the only ones tied to the size of a tile or a
-    /// height step; everything else is given in metres and converted through them.
+    /// How big the city map is in the real world. These two values are the only ones tied to the size of a city tile
+    /// or height step; everything else is given in metres and converted through them. Algorithms shared with the world
+    /// map take a GridScale instead of reading these (Grid passes them in).
     /// </summary>
-    internal static class WorldScale
+    internal static class CityScale
     {
         /// <summary>The width of one tile in metres: one cottage with its plot occupies a tile.</summary>
         public const float MetersPerTile = 10f;
@@ -17,7 +16,7 @@ namespace Polis.Sim
         /// </summary>
         public const float MetersPerHeightUnit = 2f;
 
-        /// <summary>The whole number of height steps nearest to the given height in metres.</summary>
-        public static int HeightUnitsIn(float meters) => (int)Math.Round(meters / MetersPerHeightUnit);
+        /// <summary>The city map's scale, for algorithms that take one.</summary>
+        public static readonly GridScale Grid = new GridScale(MetersPerTile, MetersPerHeightUnit);
     }
 }

@@ -36,7 +36,7 @@ namespace Polis.Sim
         public static float TemperatureAtHeight(float height, ClimateSettings climate)
         {
             climate = climate.Validated();
-            float meters = height * WorldScale.MetersPerHeightUnit;
+            float meters = height * CityScale.MetersPerHeightUnit;
             return climate.SeaLevelTemperature - Atmosphere.CoolingPerKilometer * meters / 1000f;
         }
     }

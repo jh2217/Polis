@@ -10,7 +10,7 @@ namespace Polis.Sim
         public static MapState Generate(MapSize size, SimRng rng, MapSettings settings)
         {
             settings = settings.Validated();
-            var elevation = ElevationGenerator.Generate(size, rng, settings.Elevation);
+            var elevation = ElevationGenerator.Generate(size, rng, settings.Elevation, CityScale.Grid);
             var temperature = TemperatureGenerator.Generate(elevation.Heights, settings.Climate);
             var precipitation = PrecipitationGenerator.Generate(temperature.Temperature, settings.Climate);
             return new MapState(elevation.Heights, elevation.Flatness, temperature.Temperature, temperature.TemperatureIndex, precipitation.Precipitation, precipitation.PrecipitationIndex, precipitation.SurfaceHumidity);
